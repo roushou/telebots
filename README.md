@@ -4,7 +4,7 @@ A bunch of Telegram bots to make Telegram better.
 
 | Crate                | Description                                   |
 | -------------------- | --------------------------------------------- |
-| [`degen`](crates/degen) | CoinMarketCap-powered price bot for groups |
+| [`degen`](bots/degen) | cryptocurrency bot                           |
 
 ## Getting started
 
@@ -87,8 +87,8 @@ docker compose up -d --build   # rebuild + restart after `git pull`
 
 Adding a bot (each gets its own container):
 
-1. Add the crate: `crates/<name>/`
-2. Copy `crates/degen/Dockerfile` to `crates/<name>/Dockerfile` (change the
+1. Add the bot: `bots/<name>/`
+2. Copy `bots/degen/Dockerfile` to `bots/<name>/Dockerfile` (change the
    `-p` flag to your crate)
 3. Create the encrypted env file (generates a new keypair):
    `touch deploy/env/<name>.env && dotenvx set TELEBOTS_TELEGRAM_API_KEY <token> -f deploy/env/<name>.env`

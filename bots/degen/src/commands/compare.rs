@@ -1,12 +1,10 @@
 //! `/compare` — side-by-side quotes for two or more symbols.
 
 use anyhow::{Result, bail};
+use coinmarketcap::Quote;
 use telebots_core::Block;
 
-use crate::{
-    cmc::Quote,
-    commands::{Ctx, args::Symbols},
-};
+use crate::commands::{Ctx, args::Symbols};
 
 /// Typed arguments for `/compare`.
 #[derive(Debug, Clone)]
@@ -60,7 +58,7 @@ mod tests {
     fn table_block_aligns_columns() {
         let args = CompareArgs::parse("btc eth").unwrap();
         let quotes = [
-            crate::cmc::Quote {
+            Quote {
                 id: Some(1),
                 name: "Bitcoin".into(),
                 symbol: "BTC".into(),
@@ -70,7 +68,7 @@ mod tests {
                 market_cap: None,
                 volume_24h: None,
             },
-            crate::cmc::Quote {
+            Quote {
                 id: Some(1027),
                 name: "Ethereum".into(),
                 symbol: "ETH".into(),

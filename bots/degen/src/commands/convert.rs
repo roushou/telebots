@@ -1,9 +1,9 @@
 //! `/convert` — convert an amount between assets.
 
 use anyhow::{Result, bail};
-use telebots_core::Block;
+use telebots_core::{Block, money::Money};
 
-use crate::{commands::Ctx, money::Money};
+use crate::commands::Ctx;
 
 /// Typed arguments for `/convert`.
 #[derive(Debug, Clone)]

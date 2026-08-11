@@ -1,12 +1,11 @@
-mod cmc;
-mod coingecko;
 mod commands;
 mod config;
-mod money;
 
+use coingecko::CoinGeckoClient;
+use coinmarketcap::CmcClient;
 use teloxide::prelude::*;
 
-use crate::{cmc::CmcClient, coingecko::CoinGeckoClient, config::Config};
+use crate::config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

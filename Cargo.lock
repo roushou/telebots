@@ -186,6 +186,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "coingecko"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.13.4",
+ "serde",
+ "telebots-core",
+]
+
+[[package]]
+name = "coinmarketcap"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.13.4",
+ "serde",
+ "telebots-core",
+]
+
+[[package]]
 name = "colored"
 version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,8 +329,8 @@ name = "degen"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "reqwest 0.13.4",
- "serde",
+ "coingecko",
+ "coinmarketcap",
  "telebots-core",
  "teloxide",
  "tokio",

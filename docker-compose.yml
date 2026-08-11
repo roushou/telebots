@@ -7,7 +7,7 @@ services:
   degen:
     build:
       context: .
-      dockerfile: crates/degen/Dockerfile
+      dockerfile: bots/degen/Dockerfile
     volumes:
       - ./deploy/env/degen.env:/app/degen.env:ro
       - ./deploy/env/.env.keys:/app/.env.keys:ro

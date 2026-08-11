@@ -7,9 +7,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
-use telebots_core::{Block, Cell, Change, Line, RenderBlock};
-
-use crate::money::Money;
+use telebots_core::{Block, Cell, Change, Line, RenderBlock, money::Money};
 
 const API_BASE: &str = "https://pro-api.coinmarketcap.com";
 const DEFAULT_CONVERT: &str = "USD";
@@ -227,7 +225,7 @@ impl Quote {
     }
 
     /// A comparison-table row: symbol, right-aligned price, 24h change.
-    pub(crate) fn compare_row(&self) -> [Cell; 3] {
+    pub fn compare_row(&self) -> [Cell; 3] {
         let price = self
             .price
             .map(|p| Money::usd(p).to_string())

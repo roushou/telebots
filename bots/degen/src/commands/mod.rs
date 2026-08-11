@@ -28,11 +28,13 @@ mod market;
 mod price;
 mod trending;
 
+use coingecko::CoinGeckoClient;
+use coinmarketcap::CmcClient;
+
 use self::{
     compare::CompareArgs, convert::ConvertArgs, fear_greed::FearGreed, help::Help, info::InfoArgs,
     market::Market, price::PriceArgs, trending::Trending,
 };
-use crate::{cmc::CmcClient, coingecko::CoinGeckoClient};
 
 /// Everything a command needs to produce its reply.
 #[derive(Clone)]

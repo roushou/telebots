@@ -1,4 +1,4 @@
-//! CoinGecko client — trending coins (free, no API key).
+//! CoinGecko client (free, no API key).
 //!
 //! CMC's `trending/latest` is paid, so `/trending` uses CoinGecko's
 //! `search/trending`, which needs no key.

@@ -1,9 +1,10 @@
 //! `/trending` — top trending coins (CoinGecko).
 
 use anyhow::Result;
+use coingecko::TrendingCoin;
 use telebots_core::{Block, RenderBlock};
 
-use crate::{coingecko::TrendingCoin, commands::Ctx};
+use crate::commands::Ctx;
 
 const TRENDING_LIMIT: usize = 5;
 
