@@ -1,21 +1,20 @@
 # degen
 
-A CoinMarketCap-powered Telegram bot: query prices and convert amounts.
+A Telegram crypto bot.
 
 ## Setup
 
-Env vars live in the committed, encrypted `deploy/env/degen.env`; dotenvx
-decrypts it at runtime using the gitignored `deploy/env/.env.keys`:
-
 ```sh
-dotenvx run -f deploy/env/degen.env -fk deploy/env/.env.keys -- cargo run -p degen
+just run      # local dev
+just run-prod # prod token — only while prod isn't polling
 ```
 
-Change a value with `dotenvx set KEY value -f deploy/env/degen.env`.
+Set your personal dev token with `just set-dev TELEBOTS_TELEGRAM_API_KEY <token>`.
+Change a prod value with `dotenvx set KEY value -f deploy/env/degen.env`.
 
 | Variable                | Where to get it                                    |
 | ----------------------- | -------------------------------------------------- |
-| `TELEBOTS_API_KEY_DEGEN` | Telegram bot token from [@BotFather]              |
+| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]           |
 | `COINMARKETCAP_API_KEY` | Free-tier key from [pro.coinmarketcap.com]         |
 
 [@BotFather]: https://t.me/BotFather

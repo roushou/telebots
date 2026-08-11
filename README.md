@@ -12,19 +12,37 @@ The bot uses long polling: it pulls updates from Telegram outbound, so no
 public URL, tunnel or reverse proxy is needed.
 
 Env vars live in the committed, encrypted `deploy/env/<bot>.env` files
-([dotenvx](https://dotenvx.com/) encryption). They decrypt automatically at
-runtime when `.env.keys` sits beside them (gitignored — copy it to any new
-machine out-of-band):
+([dotenvx](https://dotenvx.com/) encryption) — one file per bot, holding
+that bot's production token and API keys. They decrypt automatically at
+runtime when `.env.keys` sits beside them.
+
+For local development, create `deploy/env/<bot>.local.env` with your own
+bot token `TELEBOTS_TELEGRAM_API_KEY=<your-token>`.
+
+Then run the bot.
 
 ```sh
-dotenvx run -f deploy/env/degen.env -fk deploy/env/.env.keys -- cargo run -p degen
+just run
 ```
 
-**Use a separate test bot for local dev.** Telegram delivers each update to
-only one long-polling client per token, so running the production token
-locally while production is also running makes the two steal updates from
-each other. Get a throwaway token from [@BotFather](https://t.me/BotFather)
-and set it with `dotenvx set TELEBOTS_API_KEY_DEGEN <token> -f deploy/env/degen.env`.
+> [!NOTE]
+> **Use a separate test bot for local dev.**
+>
+> Telegram delivers each update to only one long-polling client per token
+> so running the production token locally while production is also running
+> makes the two steal updates from each other.
+>
+> Every developer keeps their own throwaway token from [@BotFather](https://t.me/BotFather)
+> in a gitignored local override file and dotenvx merges the override on top of the committed file — first file wins:
+
+```sh
+just set-dev TELEBOTS_TELEGRAM_API_KEY <token>   # writes deploy/env/degen.local.env
+just run                                          # your dev token; prod untouched
+```
+
+For another bot, pass it as the last argument (`just set-dev ... crypto`,
+`just run crypto`). Without a local override, `just run` falls back to the
+prod token — so don't run a bot locally while its VPS container is up.
 
 ## Deployment (VPS)
 
@@ -56,8 +74,8 @@ containers mount them and dotenvx decrypts at runtime. The `.env.keys` files
 are gitignored and never enter the image.
 
 **Adding/changing a variable:** `dotenvx set KEY value -f deploy/env/<bot>.env`
-(re-encrypts in place), then commit and `git pull && sudo ./deploy/deploy.sh`
-on the VPS.
+(or `just set KEY value <bot>`) (re-encrypts in place), then commit and
+`git pull && sudo ./deploy/deploy.sh` on the VPS.
 
 Useful commands:
 
@@ -72,8 +90,12 @@ Adding a bot (each gets its own container):
 1. Add the crate: `crates/<name>/`
 2. Copy `crates/degen/Dockerfile` to `crates/<name>/Dockerfile` (change the
    `-p` flag to your crate)
-3. `dotenvx encrypt -f deploy/env/<name>.env` (create the encrypted env file)
+3. Create the encrypted env file (generates a new keypair):
+   `touch deploy/env/<name>.env && dotenvx set TELEBOTS_TELEGRAM_API_KEY <token> -f deploy/env/<name>.env`
 4. Add a `<name>` service block to [`docker-compose.yml`](./docker-compose.yml)
+5. Distribute the new key out-of-band: `scp deploy/env/.env.keys root@<vps>:/opt/telebots/deploy/env/.env.keys`
+   — teammates just run `just set-dev TELEBOTS_TELEGRAM_API_KEY <token> <name>`
+   for their own dev token; no new key needed on their side
 
 Notes:
 

@@ -10,7 +10,7 @@ use anyhow::{Result, bail};
 /// Env var names, defined once so docs, code, and `.env.example` stay in sync.
 pub mod keys {
     /// Telegram bot token from @BotFather.
-    pub const TELEGRAM_BOT_TOKEN: &str = "TELEBOTS_API_KEY_DEGEN";
+    pub const TELEGRAM_BOT_TOKEN: &str = "TELEBOTS_TELEGRAM_API_KEY";
     /// CoinMarketCap API key from pro.coinmarketcap.com.
     pub const COINMARKETCAP_API_KEY: &str = "COINMARKETCAP_API_KEY";
 }
