@@ -1,0 +1,4 @@
+# Group imports into std / external / crate groups, sorted within each
+edition = "2024"
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"

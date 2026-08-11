@@ -1,0 +1,6 @@
+/target
+
+.env
+
+# dotenvx decryption keys — private, never committed; copy to the VPS out-of-band
+deploy/env/.env.keys
