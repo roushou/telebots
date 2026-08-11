@@ -1,4 +1,5 @@
 target
 .git
-.env
-deploy
+**/.env
+bots/*/.env
+deploy.sh

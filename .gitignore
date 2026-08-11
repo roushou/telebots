@@ -2,8 +2,5 @@
 
 .env
 
-# dotenvx decryption keys — private, never committed; copy to the VPS out-of-band
-deploy/env/.env.keys
-
-# per-developer dev-token overrides (plaintext, never deployed)
-deploy/env/*.local.env
+# Per-bot env files, created from bots/*/.env.example on the VPS
+bots/*/.env

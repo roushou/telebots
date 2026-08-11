@@ -5,12 +5,11 @@ A Telegram crypto bot.
 ## Setup
 
 ```sh
-just run      # local dev
-just run-prod # prod token — only while prod isn't polling
+cp bots/degen/.env.example bots/degen/.env   # fill in the keys
+just run                                     # cargo run -p degen; loads its .env
 ```
 
-Set your personal dev token with `just set-dev TELEBOTS_TELEGRAM_API_KEY <token>`.
-Change a prod value with `dotenvx set KEY value -f deploy/env/degen.env`.
+Use a separate test bot token from @BotFather for local dev.
 
 | Variable                | Where to get it                                    |
 | ----------------------- | -------------------------------------------------- |

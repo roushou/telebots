@@ -1,9 +1,6 @@
 # TLS is rustls (pure Rust), so no OpenSSL/pkg-config system deps are needed.
 FROM rust:1-bookworm AS builder
 
-# dotenvx: standalone binary used at runtime to load .env (supports encryption).
-RUN curl -sfS https://dotenvx.sh/install.sh | sh
-
 WORKDIR /app
 
 COPY . .
@@ -23,9 +20,6 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=builder /usr/local/bin/dotenvx /usr/local/bin/dotenvx
-
 COPY --from=builder /out/degen /usr/local/bin/degen
 
-# dotenvx decrypts /app/degen.env (mounted by compose) using /app/.env.keys.
-CMD ["dotenvx", "run", "-f", "degen.env", "-fk", ".env.keys", "--", "degen"]
+CMD ["degen"]

@@ -1,14 +1,8 @@
 # One service per bot; see README "Deployment (VPS)" for setup and adding bots.
-#
-# degen.env is the committed encrypted env file; .env.keys (gitignored) holds
-# the decryption key and must be present next to it. dotenvx decrypts at
-# runtime; neither file is baked into the image.
 services:
   degen:
     build:
       context: .
       dockerfile: bots/degen/Dockerfile
-    volumes:
-      - ./deploy/env/degen.env:/app/degen.env:ro
-      - ./deploy/env/.env.keys:/app/.env.keys:ro
+    env_file: bots/degen/.env
     restart: unless-stopped

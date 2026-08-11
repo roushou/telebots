@@ -8,6 +8,7 @@ license.workspace = true
 anyhow.workspace = true
 coinmarketcap.workspace = true
 coingecko.workspace = true
+dotenvy.workspace = true
 telebots-core.workspace = true
 teloxide.workspace = true
 tokio.workspace = true

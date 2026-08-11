@@ -9,6 +9,9 @@ use crate::config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load this bot's own .env (gitignored, per machine) regardless of CWD.
+    dotenvy::from_path(format!("{}/.env", env!("CARGO_MANIFEST_DIR"))).ok();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
