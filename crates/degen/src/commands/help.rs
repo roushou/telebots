@@ -1,11 +1,19 @@
 //! `/help` — list commands, generated from the enum's descriptions.
 
-use teloxide::{prelude::*, utils::command::BotCommands};
+use anyhow::Result;
+use telebots_core::Block;
+use teloxide::utils::command::BotCommands;
 
 use super::Command;
 
-pub async fn handle(bot: Bot, msg: Message) -> ResponseResult<()> {
-    bot.send_message(msg.chat.id, Command::descriptions().to_string())
-        .await?;
-    Ok(())
+/// The `/help` command.
+pub struct Help;
+
+impl Help {
+    /// Produce the reply block.
+    pub async fn reply(&self) -> Result<Block> {
+        let mut b = Block::new();
+        b.line(Command::descriptions().to_string().trim_end().to_string());
+        Ok(b)
+    }
 }

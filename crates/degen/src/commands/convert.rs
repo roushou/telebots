@@ -1,37 +1,55 @@
 //! `/convert` — convert an amount between assets.
 
 use anyhow::{Result, bail};
-use teloxide::prelude::*;
+use telebots_core::Block;
 
-use crate::{cmc::CmcClient, commands::util, money::Money};
+use crate::{commands::Ctx, money::Money};
 
-pub async fn handle(bot: Bot, msg: Message, args: String, cmc: CmcClient) -> ResponseResult<()> {
-    util::send(bot, msg, text(&args, &cmc).await).await
+/// Typed arguments for `/convert`.
+#[derive(Debug, Clone)]
+pub struct ConvertArgs {
+    pub amount: f64,
+    pub symbol: String,
+    pub to: String,
 }
 
-/// Pure command logic; unit-testable without a bot or network.
-pub async fn text(args: &str, cmc: &CmcClient) -> Result<String> {
-    let tokens = util::tokens(args);
-    let (Some(amount), Some(symbol)) = (
-        tokens.first().and_then(|t| t.parse::<f64>().ok()),
-        tokens.get(1),
-    ) else {
-        bail!("Usage: /convert 100 btc usd");
-    };
-    let to = tokens
-        .get(2)
-        .map(|t| t.to_uppercase())
-        .unwrap_or_else(|| "USD".to_string());
-    let converted = cmc.convert(amount, symbol, &to).await?;
-    Ok(format_conversion(amount, symbol, converted, &to))
-}
+impl ConvertArgs {
+    /// Parse and validate `"100 btc usd"` (target defaults to USD).
+    pub fn parse(raw: &str) -> Result<Self> {
+        let tokens: Vec<&str> = raw.split_whitespace().collect();
+        let (Some(amount), Some(symbol)) = (
+            tokens.first().and_then(|t| t.parse::<f64>().ok()),
+            tokens.get(1),
+        ) else {
+            bail!("Usage: /convert 100 btc usd");
+        };
+        let to = tokens
+            .get(2)
+            .map(|t| t.to_uppercase())
+            .unwrap_or_else(|| "USD".to_string());
+        Ok(Self {
+            amount,
+            symbol: symbol.to_uppercase(),
+            to,
+        })
+    }
 
-pub fn format_conversion(amount: f64, symbol: &str, converted: f64, to: &str) -> String {
-    format!(
-        "💱 {amount} {} = {}",
-        symbol.to_uppercase(),
-        Money::new(converted, to)
-    )
+    fn format_line(&self, converted: f64) -> String {
+        format!(
+            "💱 {} {} = {}",
+            self.amount,
+            self.symbol,
+            Money::new(converted, &self.to)
+        )
+    }
+
+    /// Produce the reply block.
+    pub async fn reply(&self, ctx: &Ctx) -> Result<Block> {
+        let converted = ctx.cmc.convert(self.amount, &self.symbol, &self.to).await?;
+        let mut b = Block::new();
+        b.line(self.format_line(converted));
+        Ok(b)
+    }
 }
 
 #[cfg(test)]
@@ -39,8 +57,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn format_conversion_card() {
-        let out = format_conversion(100.0, "btc", 6_700_000.0, "usd");
-        assert_eq!(out, "💱 100 BTC = $6,700,000");
+    fn parse_requires_amount_and_symbol() {
+        assert!(ConvertArgs::parse("").is_err());
+        assert!(ConvertArgs::parse("100").is_err());
+        assert!(ConvertArgs::parse("btc usd").is_err());
+        assert!(ConvertArgs::parse("x btc").is_err());
+    }
+
+    #[test]
+    fn parse_defaults_to_usd() {
+        let args = ConvertArgs::parse("100 btc").unwrap();
+        assert_eq!(args.amount, 100.0);
+        assert_eq!(args.symbol, "BTC");
+        assert_eq!(args.to, "USD");
+    }
+
+    #[test]
+    fn format_line() {
+        let args = ConvertArgs::parse("100 btc usd").unwrap();
+        assert_eq!(args.format_line(6_700_000.0), "💱 100 BTC = $6,700,000");
     }
 }

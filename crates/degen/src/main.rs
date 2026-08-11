@@ -22,8 +22,10 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env()?;
 
     let bot = Bot::new(config.telegram_bot_token);
-    let cmc = CmcClient::new(config.coinmarketcap_api_key);
-    let coingecko = CoinGeckoClient::new();
+    let ctx = commands::Ctx {
+        cmc: CmcClient::new(config.coinmarketcap_api_key),
+        coingecko: CoinGeckoClient::new(),
+    };
 
     tracing::info!("degen bot started");
 
@@ -32,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
     let handler = commands::routes();
 
     let mut dispatcher = Dispatcher::builder(bot, handler)
-        .dependencies(dptree::deps![cmc, coingecko])
+        .dependencies(dptree::deps![ctx])
         .enable_ctrlc_handler()
         .build();
 

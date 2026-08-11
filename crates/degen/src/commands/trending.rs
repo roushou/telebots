@@ -2,32 +2,34 @@
 
 use anyhow::Result;
 use telebots_core::{Block, RenderBlock};
-use teloxide::prelude::*;
 
-use crate::{coingecko::CoinGeckoClient, commands::util};
+use crate::{coingecko::TrendingCoin, commands::Ctx};
 
 const TRENDING_LIMIT: usize = 5;
 
-pub async fn handle(bot: Bot, msg: Message, client: CoinGeckoClient) -> ResponseResult<()> {
-    util::send(bot, msg, text(&client).await).await
-}
+/// The `/trending` command.
+pub struct Trending;
 
-/// Pure command logic; unit-testable without a bot or network.
-pub async fn text(client: &CoinGeckoClient) -> Result<String> {
-    let coins = client.trending(TRENDING_LIMIT).await?;
-
-    let mut b = Block::new();
-    b.line("🔥 Trending");
-    for (i, coin) in coins.iter().enumerate() {
-        b.line(format!("{}. {}", i + 1, coin.to_block().build()));
+impl Trending {
+    fn list_block(coins: &[TrendingCoin]) -> Block {
+        let mut b = Block::new();
+        b.line("🔥 Trending");
+        for (i, coin) in coins.iter().enumerate() {
+            b.line(format!("{}. {}", i + 1, coin.to_block().build()));
+        }
+        b
     }
-    Ok(b.build())
+
+    /// Produce the reply block.
+    pub async fn reply(&self, ctx: &Ctx) -> Result<Block> {
+        let coins = ctx.coingecko.trending(TRENDING_LIMIT).await?;
+        Ok(Self::list_block(&coins))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::coingecko::TrendingCoin;
 
     #[test]
     fn builds_numbered_list() {
@@ -45,13 +47,8 @@ mod tests {
                 change_24h: None,
             },
         ];
-        let mut b = Block::new();
-        b.line("🔥 Trending");
-        for (i, coin) in coins.iter().enumerate() {
-            b.line(format!("{}. {}", i + 1, coin.to_block().build()));
-        }
         assert_eq!(
-            b.build(),
+            Trending::list_block(&coins).build(),
             "🔥 Trending\n1. #124 Velvet (VELVET) ▲ +58.6%\n2. Pons (PONS)"
         );
     }

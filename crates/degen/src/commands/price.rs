@@ -2,28 +2,53 @@
 
 use anyhow::{Result, bail};
 use telebots_core::{Block, RenderBlock};
-use teloxide::prelude::*;
 
-use crate::{cmc::CmcClient, commands::util};
+use crate::commands::{Ctx, args::Symbols};
 
-pub async fn handle(bot: Bot, msg: Message, args: String, cmc: CmcClient) -> ResponseResult<()> {
-    util::send(bot, msg, text(&args, &cmc).await).await
+/// Typed arguments for `/price`.
+#[derive(Debug, Clone)]
+pub struct PriceArgs {
+    pub symbols: Symbols,
 }
 
-/// Pure command logic; unit-testable without a bot or network.
-pub async fn text(args: &str, cmc: &CmcClient) -> Result<String> {
-    let symbols = util::normalize(args);
-    if symbols.is_empty() {
-        bail!("Usage: /price btc eth sol");
-    }
-    let quotes = cmc.quotes(&symbols).await?;
-
-    let mut b = Block::new();
-    for (i, q) in quotes.iter().enumerate() {
-        if i > 0 {
-            b.blank();
+impl PriceArgs {
+    /// Parse and validate the raw argument string.
+    pub fn parse(raw: &str) -> Result<Self> {
+        let symbols = Symbols::parse(raw);
+        if symbols.is_empty() {
+            bail!("Usage: /price btc eth sol");
         }
-        b.push_block(q.to_block());
+        Ok(Self { symbols })
     }
-    Ok(b.build())
+
+    /// Produce the reply block: one card per quote, blank-line separated.
+    pub async fn reply(&self, ctx: &Ctx) -> Result<Block> {
+        let quotes = ctx.cmc.quotes(&self.symbols).await?;
+
+        let mut b = Block::new();
+        for (i, q) in quotes.iter().enumerate() {
+            if i > 0 {
+                b.blank();
+            }
+            b.push_block(q.to_block());
+        }
+        Ok(b)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_requires_symbols() {
+        assert!(PriceArgs::parse("").is_err());
+        assert!(PriceArgs::parse("   ").is_err());
+    }
+
+    #[test]
+    fn parse_uppercases_symbols() {
+        let args = PriceArgs::parse("btc eth").unwrap();
+        assert_eq!(&*args.symbols, &["BTC".to_string(), "ETH".to_string()]);
+    }
 }
