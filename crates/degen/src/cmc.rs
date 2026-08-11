@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
+use telebots_core::{Block, Cell, Change, Line, RenderBlock};
 
 use crate::money::Money;
 
@@ -224,20 +225,35 @@ impl Quote {
             volume_24h: usd.and_then(|q| q.volume_24h),
         }
     }
+
+    /// A comparison-table row: symbol, right-aligned price, 24h change.
+    pub(crate) fn compare_row(&self) -> [Cell; 3] {
+        let price = self
+            .price
+            .map(|p| Money::usd(p).to_string())
+            .unwrap_or_else(|| "—".to_string());
+        let change = self
+            .change_24h
+            .map(|c| Change::new(c).to_string())
+            .unwrap_or_else(|| "—".to_string());
+        [
+            Cell::new(&self.symbol),
+            Cell::right(price),
+            Cell::new(change),
+        ]
+    }
 }
 
-impl Display for Quote {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl RenderBlock for Quote {
+    fn render_block(&self, out: &mut Block) {
+        // The card body as lines; the rank suffix attaches to the last line.
         let mut lines = vec![format!("💰 {} ({})", self.name, self.symbol)];
         match self.price {
             Some(p) => lines.push(format!("Price: {}", Money::usd(p))),
             None => lines.push("Price: —".to_string()),
         }
         match self.change_24h {
-            Some(c) => {
-                let arrow = if c >= 0.0 { "▲" } else { "▼" };
-                lines.push(format!("24h: {arrow} {c:+.2}%"));
-            }
+            Some(c) => lines.push(format!("24h: {}", Change::new(c))),
             None => lines.push("24h: —".to_string()),
         }
         if let Some(mc) = self.market_cap {
@@ -251,7 +267,15 @@ impl Display for Quote {
         {
             last.push_str(&format!(" · rank #{rank}"));
         }
-        write!(f, "{}", lines.join("\n"))
+        for line in lines {
+            out.line(line);
+        }
+    }
+}
+
+impl Display for Quote {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_block().build())
     }
 }
 
@@ -304,6 +328,23 @@ pub struct GlobalMetrics {
     pub eth_dominance: f64,
 }
 
+impl RenderBlock for GlobalMetrics {
+    fn render_block(&self, out: &mut Block) {
+        out.line("🌐 Market Overview");
+        let cap = match self.change_24h {
+            Some(c) => format!(
+                "{} ({} 24h)",
+                Money::compact_usd(self.total_market_cap),
+                Change::new(c)
+            ),
+            None => Money::compact_usd(self.total_market_cap).to_string(),
+        };
+        out.kv("Total MCap", cap);
+        out.kv("BTC dominance", format!("{:.1}%", self.btc_dominance));
+        out.kv("ETH dominance", format!("{:.1}%", self.eth_dominance));
+    }
+}
+
 #[derive(Deserialize)]
 struct GlobalMetricsResponse {
     status: ApiStatus,
@@ -345,12 +386,42 @@ impl CoinInfo {
     }
 }
 
+/// Cap project descriptions so replies stay comfortably under Telegram's
+/// message limit.
+const DESCRIPTION_LIMIT: usize = 300;
+
+impl RenderBlock for CoinInfo {
+    fn render_block(&self, out: &mut Block) {
+        out.line(format!("ℹ️ {} ({})", self.name, self.symbol));
+        if !self.category.is_empty() {
+            out.kv("Category", &self.category);
+        }
+        if let Some(website) = &self.website {
+            out.line(format!("🔗 {website}"));
+        }
+        if !self.description.is_empty() {
+            let mut line = Line::text(self.description.clone());
+            line.ellipsize(DESCRIPTION_LIMIT);
+            out.push(line);
+        }
+    }
+}
+
 /// The Fear & Greed index, 0 (extreme fear) to 100 (extreme greed).
 /// From CMC's keyless public API (`/public-api/v3/fear-and-greed/latest`).
 #[derive(Debug, Clone)]
 pub struct FearGreed {
     pub value: u8,
     pub classification: String,
+}
+
+impl RenderBlock for FearGreed {
+    fn render_block(&self, out: &mut Block) {
+        out.line(format!(
+            "😱 Fear & Greed: {}/100 — {}",
+            self.value, self.classification
+        ));
+    }
 }
 
 #[derive(Deserialize)]
@@ -407,6 +478,77 @@ mod tests {
         assert!(s.contains("MCap: $1.23T"));
         assert!(s.contains("Vol (24h): $45.6B"));
         assert!(s.ends_with("rank #1"));
+    }
+
+    #[test]
+    fn global_metrics_block() {
+        let m = GlobalMetrics {
+            total_market_cap: 2.61e12,
+            change_24h: Some(1.42),
+            btc_dominance: 58.7,
+            eth_dominance: 10.4,
+        };
+        assert_eq!(
+            m.to_block().build(),
+            "🌐 Market Overview\nTotal MCap: $2.61T (▲ +1.42% 24h)\nBTC dominance: 58.7%\nETH dominance: 10.4%"
+        );
+    }
+
+    #[test]
+    fn fear_greed_block() {
+        let fg = FearGreed {
+            value: 29,
+            classification: "Fear".into(),
+        };
+        assert_eq!(fg.to_block().build(), "😱 Fear & Greed: 29/100 — Fear");
+    }
+
+    #[test]
+    fn coin_info_block() {
+        let info = CoinInfo {
+            name: "Bitcoin".into(),
+            symbol: "BTC".into(),
+            category: "coin".into(),
+            website: Some("https://bitcoin.org".into()),
+            description: "A peer-to-peer electronic cash system.".into(),
+        };
+        assert_eq!(
+            info.to_block().build(),
+            "ℹ️ Bitcoin (BTC)\nCategory: coin\n🔗 https://bitcoin.org\nA peer-to-peer electronic cash system."
+        );
+    }
+
+    #[test]
+    fn coin_info_truncates_long_description() {
+        let info = CoinInfo {
+            name: "Bitcoin".into(),
+            symbol: "BTC".into(),
+            category: "coin".into(),
+            website: None,
+            description: "x".repeat(DESCRIPTION_LIMIT + 50),
+        };
+        let out = info.to_block().build();
+        let last = out.lines().last().unwrap();
+        assert!(last.ends_with('…'));
+        assert!(last.chars().count() <= DESCRIPTION_LIMIT + 1);
+    }
+
+    #[test]
+    fn quote_compare_row() {
+        let q = Quote {
+            id: Some(1),
+            name: "Bitcoin".into(),
+            symbol: "BTC".into(),
+            rank: None,
+            price: Some(95_432.1),
+            change_24h: Some(1.23),
+            market_cap: None,
+            volume_24h: None,
+        };
+        let row = q.compare_row();
+        assert_eq!(row[0].text(), "BTC");
+        assert_eq!(row[1].text(), "$95,432.1");
+        assert_eq!(row[2].text(), "▲ +1.23%");
     }
 
     #[test]

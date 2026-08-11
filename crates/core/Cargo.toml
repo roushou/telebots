@@ -1,0 +1,8 @@
+[package]
+name = "telebots-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+unicode-width = "0.2"

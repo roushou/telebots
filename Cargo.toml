@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/degen"]
+members = ["crates/core", "crates/degen"]
 
 [workspace.package]
 version = "0.1.0"
@@ -12,6 +12,7 @@ anyhow = "1"
 reqwest = { version = "0.13", features = ["json", "query"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+telebots-core = { path = "crates/core" }
 teloxide = { version = "0.17", default-features = false, features = ["macros", "rustls", "ctrlc_handler"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal"] }
 tracing = "0.1"

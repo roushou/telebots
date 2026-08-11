@@ -1,6 +1,7 @@
 //! `/trending` — top trending coins (CoinGecko).
 
 use anyhow::Result;
+use telebots_core::{Block, RenderBlock};
 use teloxide::prelude::*;
 
 use crate::{coingecko::CoinGeckoClient, commands::util};
@@ -13,31 +14,14 @@ pub async fn handle(bot: Bot, msg: Message, client: CoinGeckoClient) -> Response
 
 /// Pure command logic; unit-testable without a bot or network.
 pub async fn text(client: &CoinGeckoClient) -> Result<String> {
-    Ok(format_list(&client.trending(TRENDING_LIMIT).await?))
-}
+    let coins = client.trending(TRENDING_LIMIT).await?;
 
-pub fn format_list(coins: &[crate::coingecko::TrendingCoin]) -> String {
-    let mut out = String::from("🔥 Trending");
-    for (i, c) in coins.iter().enumerate() {
-        let rank = c
-            .market_cap_rank
-            .map(|r| format!("#{r} "))
-            .unwrap_or_default();
-        let change = c
-            .change_24h
-            .map(|c| {
-                let arrow = if c >= 0.0 { "▲" } else { "▼" };
-                format!(" {arrow} {c:+.1}%")
-            })
-            .unwrap_or_default();
-        out.push_str(&format!(
-            "\n{}. {rank}{} ({}){change}",
-            i + 1,
-            c.name,
-            c.symbol
-        ));
+    let mut b = Block::new();
+    b.line("🔥 Trending");
+    for (i, coin) in coins.iter().enumerate() {
+        b.line(format!("{}. {}", i + 1, coin.to_block().build()));
     }
-    out
+    Ok(b.build())
 }
 
 #[cfg(test)]
@@ -46,8 +30,8 @@ mod tests {
     use crate::coingecko::TrendingCoin;
 
     #[test]
-    fn format_ranking() {
-        let coins = vec![
+    fn builds_numbered_list() {
+        let coins = [
             TrendingCoin {
                 name: "Velvet".into(),
                 symbol: "VELVET".into(),
@@ -61,8 +45,13 @@ mod tests {
                 change_24h: None,
             },
         ];
+        let mut b = Block::new();
+        b.line("🔥 Trending");
+        for (i, coin) in coins.iter().enumerate() {
+            b.line(format!("{}. {}", i + 1, coin.to_block().build()));
+        }
         assert_eq!(
-            format_list(&coins),
+            b.build(),
             "🔥 Trending\n1. #124 Velvet (VELVET) ▲ +58.6%\n2. Pons (PONS)"
         );
     }
