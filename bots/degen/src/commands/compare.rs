@@ -4,7 +4,10 @@ use anyhow::{Result, bail};
 use coinmarketcap::Quote;
 use telebots_core::Block;
 
-use crate::commands::{Ctx, args::Symbols};
+use crate::{
+    commands::{Ctx, args::Symbols},
+    render,
+};
 
 /// Typed arguments for `/compare`.
 #[derive(Debug, Clone)]
@@ -26,7 +29,7 @@ impl CompareArgs {
         let mut b = Block::new();
         b.line(format!("📊 {}", self.symbols.join(" vs ")));
         for q in quotes {
-            b.row(q.compare_row());
+            b.row(render::quote_row(q));
         }
         b
     }

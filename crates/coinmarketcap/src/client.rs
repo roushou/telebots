@@ -20,7 +20,11 @@ pub struct CmcClient {
 impl CmcClient {
     pub fn new(api_key: String) -> Self {
         let http = reqwest::Client::builder()
-            .user_agent("degen-bot/0.1")
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ))
             .build()
             .expect("failed to build HTTP client");
         Self { http, api_key }

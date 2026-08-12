@@ -7,19 +7,9 @@
 //! monospace code block (where column alignment holds on Telegram's
 //! variable-width font).
 //!
-//! Data types render themselves via the [`RenderBlock`] trait:
-//!
-//! ```
-//! use telebots_core::{Block, RenderBlock};
-//!
-//! struct Quote { symbol: &'static str, price: f64 }
-//!
-//! impl RenderBlock for Quote {
-//!     fn render_block(&self, out: &mut Block) {
-//!         out.line(format!("{} — ${}", self.symbol, self.price));
-//!     }
-//! }
-//! ```
+//! Consumers build blocks from their data — compose with
+//! [`Block::push_block`], render with [`Block::build`] or
+//! [`Block::render_monospace`].
 
 mod change;
 
@@ -316,33 +306,6 @@ pub enum Render {
     Monospace,
 }
 
-/// Types that can render themselves into a [`Block`].
-///
-/// Implement this for data types (quotes, metrics, ...) so commands can
-/// compose them with [`Block::push_block`]:
-///
-/// ```
-/// use telebots_core::{Block, RenderBlock};
-///
-/// # struct Price;
-/// # impl RenderBlock for Price {
-/// #     fn render_block(&self, out: &mut Block) { out.line("x"); }
-/// # }
-/// let mut b = Block::new();
-/// b.push_block(Price.to_block());
-/// ```
-pub trait RenderBlock {
-    /// Append this value's lines to `out`.
-    fn render_block(&self, out: &mut Block);
-
-    /// Render this value as a standalone block.
-    fn to_block(&self) -> Block {
-        let mut out = Block::new();
-        self.render_block(&mut out);
-        out
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,20 +380,6 @@ mod tests {
         let mut b = Block::new();
         b.push(l);
         assert_eq!(b.build(), "abcd…");
-    }
-
-    #[test]
-    fn render_block_composes() {
-        struct Price(f64);
-        impl RenderBlock for Price {
-            fn render_block(&self, out: &mut Block) {
-                out.kv("Price", self.0);
-            }
-        }
-
-        let mut b = Block::new();
-        b.push_block(Price(95_000.0).to_block());
-        assert_eq!(b.build(), "Price: 95000");
     }
 
     #[test]

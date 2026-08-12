@@ -17,7 +17,11 @@ impl CoinGeckoClient {
     pub fn new() -> Self {
         let http = reqwest::Client::builder()
             // CoinGecko asks clients to identify themselves.
-            .user_agent("degen-bot/0.1")
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ))
             .build()
             .expect("failed to build HTTP client");
         Self { http }

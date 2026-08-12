@@ -1,9 +1,12 @@
 //! `/price` — latest quotes for one or more symbols.
 
 use anyhow::{Result, bail};
-use telebots_core::{Block, RenderBlock};
+use telebots_core::Block;
 
-use crate::commands::{Ctx, args::Symbols};
+use crate::{
+    commands::{Ctx, args::Symbols},
+    render,
+};
 
 /// Typed arguments for `/price`.
 #[derive(Debug, Clone)]
@@ -30,7 +33,7 @@ impl PriceArgs {
             if i > 0 {
                 b.blank();
             }
-            b.push_block(q.to_block());
+            b.push_block(render::quote_card(q));
         }
         Ok(b)
     }

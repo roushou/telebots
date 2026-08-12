@@ -2,7 +2,7 @@
 //!
 //! [`CmcClient`] performs the requests; the returned data types
 //! ([`Quote`], [`GlobalMetrics`], [`CoinInfo`], [`FearGreed`]) live in
-//! [`types`] and render themselves as text blocks.
+//! [`types`].
 
 mod client;
 mod types;

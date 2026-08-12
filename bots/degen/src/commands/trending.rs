@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use coingecko::TrendingCoin;
-use telebots_core::{Block, RenderBlock};
+use telebots_core::Block;
 
-use crate::commands::Ctx;
+use crate::{commands::Ctx, render};
 
 const TRENDING_LIMIT: usize = 5;
 
@@ -16,7 +16,7 @@ impl Trending {
         let mut b = Block::new();
         b.line("🔥 Trending");
         for (i, coin) in coins.iter().enumerate() {
-            b.line(format!("{}. {}", i + 1, coin.to_block().build()));
+            b.line(format!("{}. {}", i + 1, render::trending_line(coin)));
         }
         b
     }

@@ -1,9 +1,12 @@
 //! `/info` — project metadata (category, website, description) via CMC.
 
 use anyhow::{Result, bail};
-use telebots_core::{Block, RenderBlock};
+use telebots_core::Block;
 
-use crate::commands::{Ctx, args::Symbols};
+use crate::{
+    commands::{Ctx, args::Symbols},
+    render,
+};
 
 /// Typed arguments for `/info`.
 #[derive(Debug, Clone)]
@@ -30,7 +33,7 @@ impl InfoArgs {
             if i > 0 {
                 b.blank();
             }
-            b.push_block(info.to_block());
+            b.push_block(render::coin_info_card(info));
         }
         Ok(b)
     }

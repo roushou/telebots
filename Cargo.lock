@@ -215,7 +215,6 @@ dependencies = [
  "anyhow",
  "reqwest 0.13.4",
  "serde",
- "telebots-core",
 ]
 
 [[package]]
@@ -225,7 +224,6 @@ dependencies = [
  "anyhow",
  "reqwest 0.13.4",
  "serde",
- "telebots-core",
 ]
 
 [[package]]

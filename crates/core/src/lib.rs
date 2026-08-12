@@ -7,5 +7,5 @@
 pub mod blocks;
 pub mod money;
 
-pub use blocks::{Align, Block, Cell, Change, Line, Render, RenderBlock};
+pub use blocks::{Align, Block, Cell, Change, Line, Render};
 pub use money::{Currency, Money};

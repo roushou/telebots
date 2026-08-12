@@ -21,7 +21,11 @@ pub struct CloudflareAiClient {
 impl CloudflareAiClient {
     pub fn new(account_id: String, api_token: String) -> Self {
         let http = reqwest::Client::builder()
-            .user_agent("imagine-bot/0.1")
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ))
             .build()
             .expect("failed to build HTTP client");
         Self {

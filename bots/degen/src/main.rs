@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod render;
 
 use coingecko::CoinGeckoClient;
 use coinmarketcap::CmcClient;

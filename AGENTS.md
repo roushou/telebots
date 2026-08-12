@@ -16,10 +16,12 @@ via Docker Compose.
 ```
 bots/<name>/          one self-contained bot: src/, Dockerfile, README.md,
                       .env (gitignored) + .env.example (committed)
-crates/core/          shared library: blocks/ (Block, Cell, Line, Change,
-                      RenderBlock) and money/ (Money, Currency)
-crates/coinmarketcap/ CMC client: lib.rs (re-exports), client.rs (HTTP +
-                      wire DTOs), types.rs (public data + rendering)
+crates/core/          shared library: blocks/ (Block, Cell, Line, Change)
+                      and money/ (Money, Currency) — the document model
+                      and value types; nothing renders domain data
+crates/coinmarketcap/ CMC client: standalone crate — lib.rs (re-exports),
+                      client.rs (HTTP + wire DTOs), types.rs (public data
+                      only; no Telebots dependencies)
 crates/coingecko/     CoinGecko client: same lib/client/types shape
 crates/cloudflare-ai/ Cloudflare Workers AI client: same shape
 crates/storage/       reusable SQLite storage (async kv + record log)
@@ -28,18 +30,24 @@ docker-compose.yml    one service per bot
 justfile              developer commands
 ```
 
-Dependency direction is one-way: **bots → client crates → core**. Bots never
-reach into another bot's files; shared behavior goes in `crates/`.
+Client crates (coinmarketcap, coingecko, cloudflare-ai) are **standalone**
+— no Telebots dependencies, usable by anyone as crates.io crates. Telebots-
+side code — core (document model + value types), botkit (runtime, future),
+bots — sits above them. Bots never reach into another bot's files; shared
+behavior goes in `crates/`.
 
 ## Non-negotiable conventions
 
-- **No free functions.** Encapsulate behavior in structs/enums/traits and
-  their methods. If you're about to write a module-level `fn`, put it on a
-  type instead.
-- **Block rendering**: data types implement `RenderBlock` (from
-  `telebots-core`), which renders into a `Block`. `Display` may delegate to
-  `to_block()`. Commands never build strings with `push_str` and never call
-  `send_message` — they return blocks or explicit outcomes.
+- **No free functions** — with one carve-out: stateless presentation in
+  `bots/*/src/render.rs` is a module of plain `fn`s that turn data into
+  `Block`s (rendering is consumer-side; see below). Everything else is
+  encapsulated in structs/enums/traits and their methods. If you're about
+  to write a module-level `fn`, put it on a type instead.
+- **Consumer-side rendering**: bots build `Block`s from data in
+  `bots/<name>/src/render.rs`; data types and `telebots-core` never know
+  how they're presented (there is no `RenderBlock` trait). Commands never
+  build strings with `push_str` and never call `send_message` — they
+  return blocks or explicit outcomes.
 - **Command pattern** (in `bots/<name>/src/commands/`): the `Command` enum is
   the spec (BotCommands derive → parsing, `/help`, Telegram menu). Each
   command is an object with typed arguments: a `parse(raw) -> Result<Self>`

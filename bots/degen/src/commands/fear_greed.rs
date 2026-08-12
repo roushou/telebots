@@ -1,9 +1,9 @@
 //! `/fear_greed` — the Fear & Greed index (CMC keyless public API).
 
 use anyhow::Result;
-use telebots_core::{Block, RenderBlock};
+use telebots_core::Block;
 
-use crate::commands::Ctx;
+use crate::{commands::Ctx, render};
 
 /// The `/fear_greed` command.
 pub struct FearGreed;
@@ -11,6 +11,6 @@ pub struct FearGreed;
 impl FearGreed {
     /// Produce the reply block.
     pub async fn reply(&self, ctx: &Ctx) -> Result<Block> {
-        Ok(ctx.cmc.fear_greed().await?.to_block())
+        Ok(render::fear_greed_card(&ctx.cmc.fear_greed().await?))
     }
 }
