@@ -2,6 +2,9 @@ target
 .git
 **/.env
 bots/*/.env
+monitor/web/node_modules
+monitor/web/.output
+monitor/web/.tanstack
 data
 *.db
 deploy.sh

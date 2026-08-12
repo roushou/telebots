@@ -9,7 +9,7 @@ REPO_DIR="$(dirname "${SCRIPT_DIR}")"
 cd "${REPO_DIR}"
 
 created=0
-for example in bots/*/.env.example; do
+for example in bots/*/.env.example monitor/.env.example; do
     [[ -f "${example}" ]] || continue
     target="${example%.example}"
     if [[ ! -f "${target}" ]]; then

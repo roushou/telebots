@@ -5,8 +5,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
+RUN --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry \
+    --mount=type=cache,sharing=locked,target=/app/target \
     cargo build --release -p degen \
     && mkdir -p /out \
     && cp /app/target/release/degen /out/degen

@@ -34,6 +34,10 @@ run bot='degen':
 up:
     ./scripts/up.sh
 
+# Run the dashboard dev server on :3000 (needs `just run monitor` for data)
+web:
+    cd monitor/web && bun run dev
+
 # Follow a bot's container logs
 logs bot='degen':
     docker compose logs -f {{ bot }}

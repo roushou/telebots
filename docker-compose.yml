@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: bots/degen/Dockerfile
     env_file: bots/degen/.env
+    environment:
+      TELEBOTS_METRICS_PORT: "9101"
     restart: unless-stopped
 
   imagine:
@@ -12,6 +14,19 @@ services:
       context: .
       dockerfile: bots/imagine/Dockerfile
     env_file: bots/imagine/.env
+    environment:
+      TELEBOTS_METRICS_PORT: "9102"
     volumes:
       - ./data/imagine:/data
+    restart: unless-stopped
+
+  monitor:
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
+    env_file: monitor/.env
+    volumes:
+      - ./data/monitor:/data
+    ports:
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped

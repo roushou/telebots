@@ -10,11 +10,13 @@
 
 mod kv;
 mod records;
+mod sql;
 
 use std::{path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
 pub use records::Record;
+pub use rusqlite;
 use rusqlite::Connection;
 use tokio::sync::Mutex;
 
@@ -59,7 +61,11 @@ impl Storage {
 
 fn create_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS kv (
+        "PRAGMA journal_mode=WAL;
+         PRAGMA synchronous=NORMAL;
+         PRAGMA busy_timeout=5000;
+         PRAGMA foreign_keys=ON;
+         CREATE TABLE IF NOT EXISTS kv (
              key   TEXT PRIMARY KEY,
              value BLOB NOT NULL
          );

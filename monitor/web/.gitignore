@@ -1,0 +1,4 @@
+# Node build artifacts (monitor dashboard)
+node_modules/
+.output/
+.tanstack/

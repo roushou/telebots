@@ -1,0 +1,103 @@
+import { createServerFn } from "@tanstack/react-start";
+import {
+  type HealthSegment,
+  buildBotDetail,
+  hoursToLimit,
+  toSegments,
+} from "./history";
+
+export type BotStatus = {
+  service: string;
+  version: string;
+  uptime_secs: number;
+  telegram: string;
+  last_heartbeat_ago_secs: number | null;
+  last_update_ago_secs: number | null;
+  jobs_active: number;
+  jobs_failed_total: number;
+  panics_total: number;
+};
+
+export type BotSnapshot = {
+  bot: string;
+  ts: number;
+  status: BotStatus | null;
+  error: string | null;
+};
+
+export type Overview = {
+  bots: BotSnapshot[];
+  health: { bot: string; segments: HealthSegment[] }[];
+};
+
+export type BotDetail = {
+  latest: BotSnapshot;
+  hours: number;
+  segments: HealthSegment[];
+  jobs: { ts: number; active: number | null; failed: number | null }[];
+  panics: { ts: number; value: number | null }[];
+  restarts: { ts: number }[];
+  errors: { ts: number; end: number; message: string }[];
+};
+
+const DEFAULT_API = "http://127.0.0.1:9110";
+const OVERVIEW_WINDOW_HOURS = 24;
+
+function apiBase(): string {
+  return process.env.MONITOR_API_URL ?? DEFAULT_API;
+}
+
+async function apiBots(base: string): Promise<BotSnapshot[]> {
+  const resp = await fetch(`${base}/api/bots`);
+  if (!resp.ok) throw new Error(`monitor api responded ${resp.status}`);
+  return (await resp.json()) as BotSnapshot[];
+}
+
+async function apiHistory(
+  base: string,
+  name: string,
+  limit: number
+): Promise<BotSnapshot[]> {
+  const resp = await fetch(`${base}/api/bots/${name}/history?limit=${limit}`);
+  if (!resp.ok) throw new Error(`monitor api responded ${resp.status}`);
+  return (await resp.json()) as BotSnapshot[];
+}
+
+/// Newest snapshot per bot.
+export const fetchBots = createServerFn({ method: "GET" }).handler(
+  async (): Promise<BotSnapshot[]> => {
+    return apiBots(apiBase());
+  }
+);
+
+/// Overview board: latest snapshots plus a 24h availability strip per bot.
+export const fetchOverview = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Overview> => {
+    const base = apiBase();
+    const bots = await apiBots(base);
+    const health = await Promise.all(
+      bots.map(async (bot) => ({
+        bot: bot.bot,
+        segments: toSegments(
+          await apiHistory(base, bot.bot, hoursToLimit(OVERVIEW_WINDOW_HOURS))
+        ),
+      }))
+    );
+    return { bots, health };
+  }
+);
+
+/// Everything the per-bot detail view renders, reduced server-side.
+export const fetchBotDetail = createServerFn({ method: "POST" })
+  .validator((d: { name: string; hours: number }) => d)
+  .handler(async ({ data }): Promise<BotDetail> => {
+    const base = apiBase();
+    const history = await apiHistory(base, data.name, hoursToLimit(data.hours));
+    const latest = history[0] ?? {
+      bot: data.name,
+      ts: Math.floor(Date.now() / 1000),
+      status: null,
+      error: "no data yet",
+    };
+    return buildBotDetail(data.hours, history, latest);
+  });

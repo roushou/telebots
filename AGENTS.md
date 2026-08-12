@@ -27,6 +27,9 @@ crates/coinmarketcap/ CMC client: standalone crate — lib.rs (re-exports),
 crates/coingecko/     CoinGecko client: same lib/client/types shape
 crates/cloudflare-ai/ Cloudflare Workers AI client: same shape
 crates/storage/       reusable SQLite storage (async kv + record log)
+monitor/              admin dashboard: polls each bot's /metrics (JSON),
+                      keeps snapshots in SQLite, serves a TanStack Start
+                      dashboard (127.0.0.1:3000) + internal JSON API (9110)
 scripts/up.sh          env provisioning + compose up (run from anywhere)
 docker-compose.yml    one service per bot
 justfile              developer commands

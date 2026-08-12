@@ -25,4 +25,3 @@ teloxide = { version = "0.17", default-features = false, features = ["macros", "
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "rt", "net"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tower-http = { version = "0.6", features = ["fs"] }

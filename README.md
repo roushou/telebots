@@ -6,6 +6,7 @@ A bunch of Telegram bots to make Telegram better.
 | -------------------- | --------------------------------------------- |
 | [`degen`](bots/degen)   | cryptocurrency bot                           |
 | [`imagine`](bots/imagine) | AI image generation from prompts           |
+| [`monitor`](monitor) | admin dashboard: per-bot status + history     |
 
 ## Getting started
 
@@ -81,6 +82,14 @@ Notes:
   restarts, and is gitignored.
 - Local dev: see [Getting started](#getting-started) above — same code,
   no extra setup.
+
+## Monitoring
+
+The `monitor` service polls every bot's `/metrics` endpoint (JSON),
+stores status snapshots in SQLite, and serves an admin dashboard
+(TanStack Start) + JSON API. The dashboard binds `127.0.0.1:3000`; the
+JSON API stays internal to the container. See
+[monitor/README.md](monitor/README.md).
 
 ## License
 
