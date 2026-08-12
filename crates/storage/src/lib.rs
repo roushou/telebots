@@ -1,0 +1,77 @@
+//! Reusable SQLite storage for Telebots bots.
+//!
+//! A bot plugs in its own database file and gets a small async API over a
+//! single connection: a persistent key-value store (settings, cooldowns,
+//! counters) and an append-only record log (history of user actions).
+//!
+//! Organized by concern: [`kv`] and [`records`] provide the two stores;
+//! [`Storage`] owns the connection. Queries run on a blocking thread; the
+//! API is fully async.
+
+mod kv;
+mod records;
+
+use std::{path::Path, sync::Arc};
+
+use anyhow::{Context, Result};
+pub use records::Record;
+use rusqlite::Connection;
+use tokio::sync::Mutex;
+
+/// A SQLite-backed store. Cheap to clone; all instances share one connection.
+#[derive(Clone)]
+pub struct Storage {
+    inner: Arc<Mutex<Connection>>,
+}
+
+impl Storage {
+    /// Open (creating if missing) the database at `path` and ensure the
+    /// schema exists. Pass `:memory:` for an in-memory database.
+    pub async fn open(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref().to_owned();
+        tokio::task::spawn_blocking(move || {
+            let conn = Connection::open(&path)
+                .with_context(|| format!("failed to open database at {}", path.display()))?;
+            create_schema(&conn)?;
+            Ok(Self {
+                inner: Arc::new(Mutex::new(conn)),
+            })
+        })
+        .await?
+    }
+
+    /// Run `f` against the connection on a blocking thread.
+    async fn with_conn<T>(
+        &self,
+        f: impl FnOnce(&Connection) -> Result<T> + Send + 'static,
+    ) -> Result<T>
+    where
+        T: Send + 'static,
+    {
+        let inner = self.inner.clone();
+        tokio::task::spawn_blocking(move || {
+            let conn = inner.blocking_lock();
+            f(&conn)
+        })
+        .await?
+    }
+}
+
+fn create_schema(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS kv (
+             key   TEXT PRIMARY KEY,
+             value BLOB NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS records (
+             id         INTEGER PRIMARY KEY AUTOINCREMENT,
+             chat_id    INTEGER NOT NULL,
+             user_id    INTEGER,
+             kind       TEXT NOT NULL,
+             text       TEXT,
+             payload    BLOB,
+             created_at INTEGER NOT NULL
+         );",
+    )?;
+    Ok(())
+}

@@ -4,11 +4,12 @@ A bunch of Telegram bots to make Telegram better.
 
 | Crate                | Description                                   |
 | -------------------- | --------------------------------------------- |
-| [`degen`](bots/degen) | cryptocurrency bot                           |
+| [`degen`](bots/degen)   | cryptocurrency bot                           |
+| [`imagine`](bots/imagine) | AI image generation from prompts           |
 
 ## Getting started
 
-The bot uses long polling: it pulls updates from Telegram outbound, so no
+Bots use long polling: they pull updates from Telegram outbound, so no
 public URL, tunnel or reverse proxy is needed.
 
 Each bot ships its own `.env.example`. Copy it, fill in the keys, and run:
@@ -72,9 +73,12 @@ Adding a bot (each gets its own container):
 
 Notes:
 
-- Only outbound connectivity to `api.telegram.org` and the CoinMarketCap API
-  is required; nothing needs to be reachable from the internet, so the VPS
-  firewall can drop inbound traffic.
+- Only outbound connectivity is required (`api.telegram.org`, the
+  CoinMarketCap API, `api.cloudflare.com`); nothing needs to be reachable
+  from the internet, so the VPS firewall can drop inbound traffic.
+- Bots with persistent state (imagine) mount a data volume
+  (`./data/<bot>:/data`); the SQLite database lives there, survives
+  redeploys, and is gitignored.
 - Local dev: see [Getting started](#getting-started) above — same code,
   no extra setup.
 

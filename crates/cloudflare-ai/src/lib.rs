@@ -1,0 +1,10 @@
+//! Cloudflare Workers AI client — image generation (free tier).
+//!
+//! [`CloudflareAiClient`] performs the requests; the generated image type
+//! lives in [`types`].
+
+mod client;
+mod types;
+
+pub use client::CloudflareAiClient;
+pub use types::GeneratedImage;

@@ -2,4 +2,6 @@ target
 .git
 **/.env
 bots/*/.env
+data
+*.db
 deploy.sh

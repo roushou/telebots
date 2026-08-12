@@ -6,3 +6,12 @@ services:
       dockerfile: bots/degen/Dockerfile
     env_file: bots/degen/.env
     restart: unless-stopped
+
+  imagine:
+    build:
+      context: .
+      dockerfile: bots/imagine/Dockerfile
+    env_file: bots/imagine/.env
+    volumes:
+      - ./data/imagine:/data
+    restart: unless-stopped
