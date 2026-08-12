@@ -35,27 +35,30 @@ const DRAIN_GRACE: Duration = Duration::from_secs(15);
 /// How often the Telegram `get_me` heartbeat runs.
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
+/// Application-provided identity and runtime knobs for one bot shell. The
+/// framework consumes this; it never derives it from a service name.
+#[derive(Debug, Clone, Copy)]
+pub struct AppConfig {
+    pub service: &'static str,
+    pub version: &'static str,
+    pub metrics_port: u16,
+}
+
 /// The shell every bot is made of. The bot supplies its own `Ctx`, handler
 /// tree, and menu registration; [`App::run`] owns the dispatcher, the
 /// startup self-check, the heartbeat, and graceful shutdown.
 pub struct App<C> {
-    service: &'static str,
-    version: &'static str,
+    config: AppConfig,
     ctx: C,
     routes: UpdateHandler<RequestError>,
 }
 
 impl<C: Clone + Send + Sync + 'static> App<C> {
-    /// A new shell for `service`, with the bot's context and handler tree.
-    pub fn new(
-        service: &'static str,
-        version: &'static str,
-        ctx: C,
-        routes: UpdateHandler<RequestError>,
-    ) -> Self {
+    /// A new shell from the application's [`AppConfig`], with the bot's
+    /// context and handler tree.
+    pub fn new(config: AppConfig, ctx: C, routes: UpdateHandler<RequestError>) -> Self {
         Self {
-            service,
-            version,
+            config,
             ctx,
             routes,
         }
@@ -64,15 +67,19 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
     /// Run the poller. `bot` is the configured bot; the caller registers
     /// the command menu on it first.
     pub async fn run(self, bot: Bot) -> Result<(), AppError> {
-        let _span = tracing::info_span!("app", service = self.service).entered();
+        let _span = tracing::info_span!("app", service = self.config.service).entered();
 
         // A revoked/invalid token must fail fast instead of polling
         // silently into the void.
         let me = bot.get_me().await.map_err(AppError::GetMe)?;
-        tracing::info!("{} started (telegram: @{})", self.service, me.username());
+        tracing::info!(
+            "{} started (telegram: @{})",
+            self.config.service,
+            me.username()
+        );
 
-        let metrics = Metrics::new(self.service, self.version);
-        let port = Server::port_for(self.service);
+        let metrics = Metrics::new(self.config.service, self.config.version);
+        let port = self.config.metrics_port;
         let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
             .await
             .map_err(|source| AppError::Bind { port, source })?;

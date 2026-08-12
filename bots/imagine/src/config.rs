@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use botkit::config::{Env, Key};
 
 /// Env var names, defined once so docs, code, and `.env.example` stay in
@@ -17,10 +17,15 @@ pub mod keys {
     pub const CLOUDFLARE_ACCOUNT_ID: &str = "CLOUDFLARE_ACCOUNT_ID";
     /// SQLite database path (default: `imagine.db` in the working dir).
     pub const DB_PATH: &str = "IMAGINE_DB_PATH";
+    /// Metrics port the monitor polls.
+    pub const METRICS_PORT: &str = "TELEBOTS_METRICS_PORT";
 }
 
 /// Default database path used when `IMAGINE_DB_PATH` is unset.
 pub const DEFAULT_DB_PATH: &str = "imagine.db";
+
+/// Default metrics port used when `TELEBOTS_METRICS_PORT` is unset.
+pub const DEFAULT_METRICS_PORT: &str = "9102";
 
 /// Fully validated runtime configuration.
 ///
@@ -31,6 +36,7 @@ pub struct Config {
     pub cloudflare_api_token: String,
     pub cloudflare_account_id: String,
     pub db_path: String,
+    pub metrics_port: u16,
 }
 
 impl Config {
@@ -47,12 +53,17 @@ impl Config {
                 "find it in the Workers AI dashboard URL",
             ),
             Key::optional(keys::DB_PATH).default(DEFAULT_DB_PATH),
+            Key::optional(keys::METRICS_PORT).default(DEFAULT_METRICS_PORT),
         ])?;
         Ok(Self {
             telegram_bot_token: env.require(keys::TELEGRAM_BOT_TOKEN),
             cloudflare_api_token: env.require(keys::CLOUDFLARE_API_TOKEN),
             cloudflare_account_id: env.require(keys::CLOUDFLARE_ACCOUNT_ID),
             db_path: env.require(keys::DB_PATH),
+            metrics_port: env
+                .require(keys::METRICS_PORT)
+                .parse()
+                .context("TELEBOTS_METRICS_PORT must be a number")?,
         })
     }
 }
@@ -64,6 +75,7 @@ impl fmt::Debug for Config {
             .field("cloudflare_api_token", &"<redacted>")
             .field("cloudflare_account_id", &"<redacted>")
             .field("db_path", &self.db_path)
+            .field("metrics_port", &self.metrics_port)
             .finish()
     }
 }

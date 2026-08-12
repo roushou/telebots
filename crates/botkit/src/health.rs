@@ -10,21 +10,6 @@ use crate::metrics::{Health, Metrics};
 pub struct Server;
 
 impl Server {
-    /// The port this service listens on: `TELEBOTS_METRICS_PORT` when set,
-    /// else the per-service default (degen 9101, imagine 9102, else 9100).
-    pub fn port_for(service: &str) -> u16 {
-        if let Ok(raw) = std::env::var("TELEBOTS_METRICS_PORT")
-            && let Ok(port) = raw.parse()
-        {
-            return port;
-        }
-        match service {
-            "degen" => 9101,
-            "imagine" => 9102,
-            _ => 9100,
-        }
-    }
-
     /// Serve the health and metrics routes on `listener` in the background.
     pub fn serve(listener: TcpListener, metrics: Metrics) {
         let app = Router::new()
