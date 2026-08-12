@@ -19,6 +19,7 @@ Use a separate test bot token from @BotFather for local dev.
 | `CLOUDFLARE_API_TOKEN`  | API token with Workers AI access, dash.cloudflare.com       |
 | `CLOUDFLARE_ACCOUNT_ID` | Account id from the Workers AI dashboard URL                |
 | `IMAGINE_DB_PATH`       | SQLite path (default `imagine.db`; `/data/imagine.db` in the container) |
+| `TELEBOTS_METRICS_PORT` | Optional: metrics port (default `9102`)                                |
 
 [@BotFather]: https://t.me/BotFather
 

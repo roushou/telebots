@@ -16,20 +16,22 @@ via Docker Compose.
 ```
 bots/<name>/          one self-contained bot: src/, Dockerfile, README.md,
                       .env (gitignored) + .env.example (committed)
-crates/botkit/        shared bot shell: app.rs (dispatcher runner), config.rs
-                      (env loader), telemetry.rs (tracing, panic hook)
+crates/botkit/        bot framework: app.rs (dispatcher runner),
+                      config.rs (env loader), health.rs (metrics server),
+                      telemetry.rs (tracing, panic hook)
 crates/core/          shared library: blocks/ (Block, Cell, Line, Change)
                       and money/ (Money, Currency) — the document model
                       and value types; nothing renders domain data
 crates/coinmarketcap/ CMC client: standalone crate — lib.rs (re-exports),
-                      client.rs (HTTP + wire DTOs), types.rs (public data
-                      only; no Telebots dependencies)
-crates/coingecko/     CoinGecko client: same lib/client/types shape
+                      client.rs (HTTP + wire DTOs), types.rs (public data),
+                      error.rs (typed Error); no Telebots dependencies
+crates/coingecko/     CoinGecko client: same lib/client/types/error shape
 crates/cloudflare-ai/ Cloudflare Workers AI client: same shape
 crates/storage/       reusable SQLite storage (async kv + record log)
 monitor/              admin dashboard: polls each bot's /metrics (JSON),
                       keeps snapshots in SQLite, serves a TanStack Start
-                      dashboard (127.0.0.1:3000) + internal JSON API (9110)
+                      dashboard (shadcn/ui + TanStack Charts) on
+                      127.0.0.1:3000 + internal JSON API (9110)
 scripts/up.sh          env provisioning + compose up (run from anywhere)
 docker-compose.yml    one service per bot
 justfile              developer commands
@@ -71,6 +73,21 @@ goes in `crates/`.
   storing a downscaled JPEG copy per image, not the full PNG).
 - **Rust**: nightly pinned in `rust-toolchain.toml`, edition 2024, rustfmt
   via `rustfmt.toml`.
+- **Error handling**: library crates (`crates/*`) expose typed `thiserror`
+  error enums — one `Error` per crate, re-exported at the root and
+  `#[non_exhaustive]`; no `anyhow`, no `Result` type alias (write
+  `Result<T, Error>`). `anyhow` lives only in binaries (`bots/*`,
+  `monitor/`) and botkit's `reply` glue (it transports the command layer's
+  errors and renders them with `{:#}`). Constructors return `Result`;
+  panics stay only for provable invariants. Tests return `Result`
+  (`anyhow::Result` in binaries, the crate's `Error` in libraries) instead
+  of `.unwrap()`.
+- **Framework boundaries**: `crates/botkit` is a reusable framework and must
+  not know bot-specific facts (no bot names, ports, or name→value tables).
+  Identity and runtime knobs are injected via
+  `AppConfig { service, version, metrics_port }`. Each bot's own
+  `config.rs` owns its defaults (degen 9101, imagine 9102) and reads the
+  `TELEBOTS_METRICS_PORT` override.
 
 ## Commands
 

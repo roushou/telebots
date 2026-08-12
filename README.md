@@ -87,8 +87,8 @@ Notes:
 
 The `monitor` service polls every bot's `/metrics` endpoint (JSON),
 stores status snapshots in SQLite, and serves an admin dashboard
-(TanStack Start) + JSON API. The dashboard binds `127.0.0.1:3000`; the
-JSON API stays internal to the container. See
+(TanStack Start, shadcn/ui + TanStack Charts) + JSON API. The dashboard
+binds `127.0.0.1:3000`; the JSON API stays internal to the container. See
 [monitor/README.md](monitor/README.md).
 
 ## License

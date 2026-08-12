@@ -12,7 +12,7 @@ use crate::{
     reply::{Runtime, Supervisor},
 };
 
-/// Errors surfaced while starting the bot shell.
+/// Errors surfaced while starting the bot.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum AppError {
@@ -35,8 +35,7 @@ const DRAIN_GRACE: Duration = Duration::from_secs(15);
 /// How often the Telegram `get_me` heartbeat runs.
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
-/// Application-provided identity and runtime knobs for one bot shell. The
-/// framework consumes this; it never derives it from a service name.
+/// App configuration
 #[derive(Debug, Clone, Copy)]
 pub struct AppConfig {
     pub service: &'static str,
@@ -44,7 +43,7 @@ pub struct AppConfig {
     pub metrics_port: u16,
 }
 
-/// The shell every bot is made of. The bot supplies its own `Ctx`, handler
+/// The bot supplies its own `Ctx`, handler
 /// tree, and menu registration; [`App::run`] owns the dispatcher, the
 /// startup self-check, the heartbeat, and graceful shutdown.
 pub struct App<C> {
@@ -54,7 +53,7 @@ pub struct App<C> {
 }
 
 impl<C: Clone + Send + Sync + 'static> App<C> {
-    /// A new shell from the application's [`AppConfig`], with the bot's
+    /// A new bot from the application's [`AppConfig`], with the bot's
     /// context and handler tree.
     pub fn new(config: AppConfig, ctx: C, routes: UpdateHandler<RequestError>) -> Self {
         Self {

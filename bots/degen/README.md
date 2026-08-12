@@ -15,6 +15,7 @@ Use a separate test bot token from @BotFather for local dev.
 | ----------------------- | -------------------------------------------------- |
 | `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]           |
 | `COINMARKETCAP_API_KEY` | Free-tier key from [pro.coinmarketcap.com]         |
+| `TELEBOTS_METRICS_PORT` | Optional: metrics port (default `9101`)           |
 
 [@BotFather]: https://t.me/BotFather
 [pro.coinmarketcap.com]: https://pro.coinmarketcap.com

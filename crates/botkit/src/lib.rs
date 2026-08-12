@@ -1,5 +1,4 @@
-//! The shared bot shell: config loading, tracing setup, and the
-//! dispatcher runner every Telebots bot is made of.
+//! BotKit
 
 pub mod app;
 pub mod config;
