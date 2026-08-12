@@ -1,21 +1,21 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
-import { AppSidebar } from "../components/app-sidebar";
-import { CommandPalette } from "../components/command-palette";
-import { ThemeToggle } from "../components/theme-toggle";
-import { Button } from "../components/ui/button";
+import { AppSidebar } from "../../components/app-sidebar";
+import { CommandPalette } from "../../components/command-palette";
+import { ThemeToggle } from "../../components/theme-toggle";
+import { Button } from "../../components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "../components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
-import { fetchBots, type BotSnapshot } from "../lib/api";
-import { fmtAgo } from "../lib/format";
-import { cn } from "../lib/utils";
+} from "../../components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
+import { fetchBots, type BotSnapshot } from "../../lib/api";
+import { fmtAgo } from "../../lib/format";
+import { cn } from "../../lib/utils";
 
 export const Route = createFileRoute("/_app")({
   component: Layout,
