@@ -48,3 +48,19 @@ jobs:
 
       - name: Test
         run: cargo test --workspace
+
+  web:
+    name: Dashboard build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install
+        working-directory: monitor/web
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: monitor/web
+        run: bun run build
