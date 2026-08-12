@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
 
     commands::Command::register_menu(&bot).await?;
 
-    botkit::App::new("degen", ctx, commands::routes())
+    botkit::App::new("degen", env!("CARGO_PKG_VERSION"), ctx, commands::routes())
         .run(bot)
         .await
 }

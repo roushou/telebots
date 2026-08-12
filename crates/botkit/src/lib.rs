@@ -3,10 +3,13 @@
 
 pub mod app;
 pub mod config;
+pub mod health;
+pub mod metrics;
 pub mod reply;
 pub mod telemetry;
 
 pub use app::App;
 pub use config::{Env, Key};
-pub use reply::{Job, JobCtx, Reply, Supervisor, dispatch};
+pub use metrics::Metrics;
+pub use reply::{Job, JobCtx, Reply, Runtime, Supervisor, dispatch};
 pub use telemetry::Telemetry;

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["bots/degen", "bots/imagine", "crates/botkit", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage"]
+members = ["bots/degen", "bots/imagine", "crates/botkit", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage", "monitor"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,6 +9,7 @@ license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1"
+axum = "0.8"
 base64 = "0.22"
 botkit = { path = "crates/botkit" }
 cloudflare-ai = { path = "crates/cloudflare-ai" }
@@ -21,6 +22,7 @@ serde_json = "1"
 storage = { path = "crates/storage" }
 telebots-core = { path = "crates/core" }
 teloxide = { version = "0.17", default-features = false, features = ["macros", "rustls", "ctrlc_handler"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "rt"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "rt", "net"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tower-http = { version = "0.6", features = ["fs"] }

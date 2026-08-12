@@ -1,7 +1,6 @@
-//! Tracing setup: env-filter with a per-service fallback, optional JSON
-//! output, and a panic hook.
-
-use std::panic;
+//! Tracing setup: env-filter with a per-service fallback and optional
+//! JSON output. The panic hook lives in [`crate::App::run`], where the
+//! panic counter exists.
 
 use tracing_subscriber::EnvFilter;
 
@@ -9,7 +8,7 @@ use tracing_subscriber::EnvFilter;
 pub struct Telemetry;
 
 impl Telemetry {
-    /// Install the tracing subscriber and panic hook for `service`.
+    /// Install the tracing subscriber for `service`.
     ///
     /// Filter: `RUST_LOG` when set, else
     /// `"<service>=info,teloxide=warn,reqwest=warn"`. `TELEBOTS_LOG_JSON=1`
@@ -27,22 +26,5 @@ impl Telemetry {
         } else {
             tracing_subscriber::fmt().with_env_filter(filter).init();
         }
-
-        Self::install_panic_hook();
-    }
-
-    fn install_panic_hook() {
-        let default_hook = panic::take_hook();
-        panic::set_hook(Box::new(move |info| {
-            default_hook(info);
-            let location = info.location().map(|l| l.to_string());
-            let message = info
-                .payload()
-                .downcast_ref::<&str>()
-                .copied()
-                .or_else(|| info.payload().downcast_ref::<String>().map(String::as_str))
-                .unwrap_or("(no message)");
-            tracing::error!(target: "panic", location, "panicked: {message}");
-        }));
     }
 }

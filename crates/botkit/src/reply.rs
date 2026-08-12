@@ -14,6 +14,8 @@ use tokio::{
     time::error::Elapsed,
 };
 
+use crate::metrics::Metrics;
+
 /// Telegram's text message length limit.
 const MAX_MESSAGE_LEN: usize = 4096;
 
@@ -98,22 +100,34 @@ pub struct JobCtx {
     pub user_id: Option<i64>,
 }
 
+/// The dispatch glue: job supervision and runtime metrics, injected as a
+/// single dependency into handlers.
+#[derive(Clone)]
+pub struct Runtime {
+    pub supervisor: Supervisor,
+    pub metrics: Metrics,
+}
+
 /// Tracks in-flight background jobs so shutdown can drain them.
 #[derive(Clone)]
 pub struct Supervisor {
     inner: Arc<tokio::sync::Mutex<JoinSet<()>>>,
+    metrics: Metrics,
 }
 
 impl Supervisor {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(metrics: Metrics) -> Self {
         Self {
             inner: Arc::new(tokio::sync::Mutex::new(JoinSet::new())),
+            metrics,
         }
     }
 
     /// Run `job` in the background; deliver its reply (or a uniform error)
     /// and clean up the placeholder.
     pub async fn spawn(&self, job: Job, ctx: JobCtx) {
+        self.metrics.job_started();
+        let metrics = self.metrics.clone();
         let bot = ctx.bot.clone();
         let msg = ctx.msg.clone();
         let placeholder = ctx.placeholder.clone();
@@ -124,7 +138,9 @@ impl Supervisor {
             let handle = tokio::spawn((job.run)(ctx));
             let result = tokio::time::timeout(job.timeout, handle).await;
             let outcome = Self::job_outcome(result);
+            let failed = outcome.is_err();
             Self::deliver(&bot, &msg, &placeholder, outcome).await;
+            metrics.job_finished(failed);
         });
     }
 
@@ -193,12 +209,13 @@ impl Supervisor {
 pub async fn dispatch<F>(
     bot: &Bot,
     msg: &Message,
-    supervisor: &Supervisor,
+    runtime: &Runtime,
     reply: F,
 ) -> ResponseResult<()>
 where
     F: Future<Output = Result<Reply>>,
 {
+    runtime.metrics.note_update();
     match reply.await {
         Ok(Reply::Text(block)) => {
             bot.send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
@@ -216,7 +233,7 @@ where
                 chat_id: msg.chat.id.0,
                 user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
             };
-            supervisor.spawn(job, ctx).await;
+            runtime.supervisor.spawn(job, ctx).await;
         }
         Err(e) => {
             bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await?;

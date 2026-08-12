@@ -22,7 +22,12 @@ async fn main() -> anyhow::Result<()> {
 
     commands::Command::register_menu(&bot).await?;
 
-    botkit::App::new("imagine", ctx, commands::routes())
-        .run(bot)
-        .await
+    botkit::App::new(
+        "imagine",
+        env!("CARGO_PKG_VERSION"),
+        ctx,
+        commands::routes(),
+    )
+    .run(bot)
+    .await
 }

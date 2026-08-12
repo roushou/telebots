@@ -1,29 +1,44 @@
-//! The dispatcher runner: builds the poller, wires graceful shutdown.
+//! The dispatcher runner: builds the poller, wires graceful shutdown, the
+//! Telegram heartbeat, and the metrics server.
 
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use teloxide::{RequestError, dispatching::UpdateHandler, prelude::*};
 
-use crate::reply::Supervisor;
+use crate::{
+    health::Server,
+    metrics::Metrics,
+    reply::{Runtime, Supervisor},
+};
 
 /// How long shutdown waits for in-flight background jobs.
 const DRAIN_GRACE: Duration = Duration::from_secs(15);
 
+/// How often the Telegram `get_me` heartbeat runs.
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
+
 /// The shell every bot is made of. The bot supplies its own `Ctx`, handler
 /// tree, and menu registration; [`App::run`] owns the dispatcher, the
-/// startup self-check, and graceful shutdown.
+/// startup self-check, the heartbeat, and graceful shutdown.
 pub struct App<C> {
     service: &'static str,
+    version: &'static str,
     ctx: C,
     routes: UpdateHandler<RequestError>,
 }
 
 impl<C: Clone + Send + Sync + 'static> App<C> {
     /// A new shell for `service`, with the bot's context and handler tree.
-    pub fn new(service: &'static str, ctx: C, routes: UpdateHandler<RequestError>) -> Self {
+    pub fn new(
+        service: &'static str,
+        version: &'static str,
+        ctx: C,
+        routes: UpdateHandler<RequestError>,
+    ) -> Self {
         Self {
             service,
+            version,
             ctx,
             routes,
         }
@@ -42,9 +57,21 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
             .context("getMe failed — check the bot token")?;
         tracing::info!("{} started (telegram: @{})", self.service, me.username());
 
-        let supervisor = Supervisor::new();
+        let metrics = Metrics::new(self.service, self.version);
+        let port = Server::port_for(self.service);
+        let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
+            .await
+            .with_context(|| format!("failed to bind metrics port {port}"))?;
+        Server::serve(listener, metrics.clone());
+        Self::install_panic_hook(metrics.clone());
+        Self::spawn_heartbeat(bot.clone(), metrics.clone());
+
+        let runtime = Runtime {
+            supervisor: Supervisor::new(metrics.clone()),
+            metrics,
+        };
         let mut dispatcher = Dispatcher::builder(bot, self.routes)
-            .dependencies(dptree::deps![self.ctx, supervisor.clone()])
+            .dependencies(dptree::deps![self.ctx, runtime.clone()])
             .enable_ctrlc_handler()
             .build();
 
@@ -59,8 +86,42 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
 
         // Drain in-flight background jobs before exiting, so a generation
         // isn't cancelled mid-write.
-        supervisor.drain(DRAIN_GRACE).await;
+        runtime.supervisor.drain(DRAIN_GRACE).await;
         Ok(())
+    }
+
+    /// Log panics with location and count them in the metrics.
+    fn install_panic_hook(metrics: Metrics) {
+        let default_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            default_hook(info);
+            metrics.note_panic();
+            let location = info.location().map(|l| l.to_string());
+            let message = info
+                .payload()
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| info.payload().downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("(no message)");
+            tracing::error!(target: "panic", location, "panicked: {message}");
+        }));
+    }
+
+    /// Probe Telegram reachability every [`HEARTBEAT_INTERVAL`].
+    fn spawn_heartbeat(bot: Bot, metrics: Metrics) {
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(HEARTBEAT_INTERVAL);
+            loop {
+                tick.tick().await;
+                match bot.get_me().await {
+                    Ok(_) => metrics.heartbeat_ok(),
+                    Err(e) => {
+                        tracing::warn!("telegram heartbeat failed: {e}");
+                        metrics.heartbeat_failed();
+                    }
+                }
+            }
+        });
     }
 
     /// Resolves on SIGTERM (container stop/restart) or Ctrl+C (local dev).

@@ -59,11 +59,11 @@ impl Command {
         bot: Bot,
         msg: Message,
         ctx: Ctx,
-        supervisor: botkit::Supervisor,
+        runtime: botkit::Runtime,
     ) -> ResponseResult<()> {
         let chat_id = msg.chat.id.0;
         let user_id = msg.from.as_ref().map(|u| u.id.0 as i64);
-        botkit::dispatch(&bot, &msg, &supervisor, self.reply(&ctx, chat_id, user_id)).await
+        botkit::dispatch(&bot, &msg, &runtime, self.reply(&ctx, chat_id, user_id)).await
     }
 
     /// Register this command set as the bot's Telegram command menu.

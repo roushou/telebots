@@ -92,9 +92,9 @@ impl Command {
         bot: Bot,
         msg: Message,
         ctx: Ctx,
-        supervisor: botkit::Supervisor,
+        runtime: botkit::Runtime,
     ) -> ResponseResult<()> {
-        botkit::dispatch(&bot, &msg, &supervisor, self.reply(&ctx)).await
+        botkit::dispatch(&bot, &msg, &runtime, self.reply(&ctx)).await
     }
 
     /// Register this command set as the bot's Telegram command menu.
