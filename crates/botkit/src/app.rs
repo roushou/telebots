@@ -1,7 +1,14 @@
 //! The dispatcher runner: builds the poller, wires graceful shutdown.
 
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use teloxide::{RequestError, dispatching::UpdateHandler, prelude::*};
+
+use crate::reply::Supervisor;
+
+/// How long shutdown waits for in-flight background jobs.
+const DRAIN_GRACE: Duration = Duration::from_secs(15);
 
 /// The shell every bot is made of. The bot supplies its own `Ctx`, handler
 /// tree, and menu registration; [`App::run`] owns the dispatcher, the
@@ -35,8 +42,9 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
             .context("getMe failed — check the bot token")?;
         tracing::info!("{} started (telegram: @{})", self.service, me.username());
 
+        let supervisor = Supervisor::new();
         let mut dispatcher = Dispatcher::builder(bot, self.routes)
-            .dependencies(dptree::deps![self.ctx])
+            .dependencies(dptree::deps![self.ctx, supervisor.clone()])
             .enable_ctrlc_handler()
             .build();
 
@@ -48,6 +56,10 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
         });
 
         dispatcher.dispatch().await;
+
+        // Drain in-flight background jobs before exiting, so a generation
+        // isn't cancelled mid-write.
+        supervisor.drain(DRAIN_GRACE).await;
         Ok(())
     }
 

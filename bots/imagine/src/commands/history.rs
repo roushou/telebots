@@ -1,9 +1,10 @@
 //! `/history` — list recent generations from the persistent store.
 
 use anyhow::Result;
+use botkit::Reply;
 use telebots_core::Block;
 
-use crate::commands::{Ctx, Outcome};
+use crate::commands::Ctx;
 
 const HISTORY_LIMIT: usize = 10;
 
@@ -11,8 +12,8 @@ const HISTORY_LIMIT: usize = 10;
 pub struct History;
 
 impl History {
-    /// Produce the outcome: a text block listing recent generations.
-    pub async fn reply(&self, ctx: &Ctx, chat_id: i64) -> Result<Outcome> {
+    /// Produce the reply: a text block listing recent generations.
+    pub async fn reply(&self, ctx: &Ctx, chat_id: i64) -> Result<Reply> {
         let records = ctx.storage.recent(chat_id, "image", HISTORY_LIMIT).await?;
 
         let mut b = Block::new();
@@ -26,7 +27,7 @@ impl History {
                 b.line(format!("{id}. {prompt}"));
             }
         }
-        Ok(Outcome::Text(b))
+        Ok(Reply::Text(b))
     }
 }
 
@@ -48,8 +49,8 @@ mod tests {
     async fn empty_history_has_hint() {
         let ctx = ctx().await;
         let outcome = History.reply(&ctx, 1).await.unwrap();
-        let Outcome::Text(block) = outcome else {
-            panic!("expected text outcome");
+        let Reply::Text(block) = outcome else {
+            panic!("expected text reply");
         };
         assert_eq!(block.build(), "No images yet — try /imagine <prompt>");
     }
@@ -72,8 +73,8 @@ mod tests {
                 .unwrap();
         }
         let outcome = History.reply(&ctx, 1).await.unwrap();
-        let Outcome::Text(block) = outcome else {
-            panic!("expected text outcome");
+        let Reply::Text(block) = outcome else {
+            panic!("expected text reply");
         };
         let text = block.build();
         assert!(text.contains("a cat"));

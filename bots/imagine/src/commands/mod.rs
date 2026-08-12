@@ -1,17 +1,12 @@
 //! Command routing for the Imagine bot.
 //!
-//! Commands return explicit [`Outcome`]s — what the bot should do — and
-//! [`Command::dispatch`] is the single place that executes them. Commands
-//! never touch `send_message`; generation runs in a background task and
-//! delivers its photo through the dispatcher.
+//! Commands return [`botkit::Reply`] outcomes; botkit's dispatcher is the
+//! single place that sends. Generation runs in a supervised background job
+//! that delivers the photo (or an error) and cleans up the placeholder.
 
-use storage::{Record, Storage};
-use telebots_core::Block;
+use storage::Storage;
 use teloxide::{
-    RequestError,
-    dispatching::UpdateHandler,
-    prelude::*,
-    types::{InputFile, ReplyParameters, Update},
+    RequestError, dispatching::UpdateHandler, prelude::*, types::Update,
     utils::command::BotCommands,
 };
 
@@ -22,15 +17,12 @@ mod imagine;
 use self::{help::Help, history::History, imagine::ImagineArgs};
 use crate::generator::Generator;
 
-/// Everything a command needs to produce its outcome.
+/// Everything a command needs to produce its reply.
 #[derive(Clone)]
 pub struct Ctx {
     pub generator: Generator,
     pub storage: Storage,
 }
-
-/// Telegram's message length limit.
-const MAX_MESSAGE_LEN: usize = 4096;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "snake_case", description = "Imagine commands:")]
@@ -45,29 +37,15 @@ pub enum Command {
     Help,
 }
 
-/// An explicit intent: what the bot should do next.
-pub enum Outcome {
-    /// Reply with a text block now.
-    Text(Block),
-    /// Acknowledge with a placeholder, generate in the background, and
-    /// deliver the photo (or an error) later.
-    Generate(GenerateIntent),
-}
-
-/// What to generate.
-pub struct GenerateIntent {
-    pub prompt: String,
-}
-
 impl Command {
-    /// Produce the outcome for a parsed command. The match is thin and
-    /// exhaustive; each variant parses and delegates to its command object.
+    /// Produce the reply. The match is thin and exhaustive; each variant
+    /// parses and delegates to its command object.
     async fn reply(
         &self,
         ctx: &Ctx,
         chat_id: i64,
         user_id: Option<i64>,
-    ) -> anyhow::Result<Outcome> {
+    ) -> anyhow::Result<botkit::Reply> {
         match self {
             Command::Imagine(raw) => ImagineArgs::parse(raw)?.reply(ctx, chat_id, user_id).await,
             Command::History => History.reply(ctx, chat_id).await,
@@ -75,83 +53,17 @@ impl Command {
         }
     }
 
-    /// Execute a parsed command: interpret its outcome and send the reply.
-    pub async fn dispatch(self, bot: Bot, msg: Message, ctx: Ctx) -> ResponseResult<()> {
-        let chat_id = msg.chat.id.0;
-        let user_id = msg.from.as_ref().map(|u| u.id.0 as i64);
-        match self.reply(&ctx, chat_id, user_id).await {
-            Ok(Outcome::Text(block)) => {
-                bot.send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
-                    .await?;
-            }
-            Ok(Outcome::Generate(intent)) => {
-                let placeholder = bot.send_message(msg.chat.id, "🎨 generating…").await?;
-                let bot = bot.clone();
-                let ctx = ctx.clone();
-                tokio::spawn(async move {
-                    Self::deliver_generation(bot, msg, placeholder, ctx, intent).await;
-                });
-            }
-            Err(e) => {
-                bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await?;
-            }
-        }
-        Ok(())
-    }
-
-    /// The background half of `/imagine`: generate, record history, deliver
-    /// the photo (replacing the placeholder) or an error.
-    async fn deliver_generation(
+    /// Route a parsed command through botkit's single send point.
+    pub async fn dispatch(
+        self,
         bot: Bot,
         msg: Message,
-        placeholder: Message,
         ctx: Ctx,
-        intent: GenerateIntent,
-    ) {
-        match ctx.generator.generate(&intent.prompt).await {
-            Ok(image) => {
-                // Store a compact JPEG copy, not the full PNG: the record
-                // log only lists prompts today, and the DB would otherwise
-                // grow by megabytes per generation.
-                let payload = match image.compact() {
-                    Ok(bytes) => Some(bytes),
-                    Err(e) => {
-                        tracing::warn!("failed to compact image for storage: {e:#}");
-                        None
-                    }
-                };
-                let record = Record {
-                    id: None,
-                    chat_id: msg.chat.id.0,
-                    user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
-                    kind: "image".to_string(),
-                    text: Some(intent.prompt.clone()),
-                    payload,
-                    created_at: None,
-                };
-                if let Err(e) = ctx.storage.append(record).await {
-                    tracing::warn!("failed to record history: {e:#}");
-                }
-                let result = bot
-                    .send_photo(msg.chat.id, InputFile::memory(image.bytes))
-                    .caption(format!("🎨 {}", intent.prompt))
-                    .reply_parameters(ReplyParameters::new(msg.id))
-                    .await;
-                match result {
-                    Ok(_) => {
-                        if let Err(e) = bot.delete_message(msg.chat.id, placeholder.id).await {
-                            tracing::warn!("failed to delete placeholder: {e}");
-                        }
-                    }
-                    Err(e) => {
-                        let _ = bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await;
-                    }
-                }
-            }
-            Err(e) => {
-                let _ = bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await;
-            }
-        }
+        supervisor: botkit::Supervisor,
+    ) -> ResponseResult<()> {
+        let chat_id = msg.chat.id.0;
+        let user_id = msg.from.as_ref().map(|u| u.id.0 as i64);
+        botkit::dispatch(&bot, &msg, &supervisor, self.reply(&ctx, chat_id, user_id)).await
     }
 
     /// Register this command set as the bot's Telegram command menu.

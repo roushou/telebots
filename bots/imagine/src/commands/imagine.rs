@@ -1,18 +1,21 @@
 //! `/imagine` — generate an image from a prompt.
 //!
-//! Returns a [`Generate`](crate::commands::Outcome::Generate) intent; the
-//! actual generation and photo delivery run in a background task spawned by
-//! the dispatcher. Requests are rate-limited per user via the persistent
-//! store (nothing in memory).
+//! Returns a [`Reply::Background`] intent; generation runs in a
+//! botkit-supervised background task that delivers the photo (or an error)
+//! and cleans up the placeholder. Requests are rate-limited per user via
+//! the persistent store (nothing in memory).
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Result, bail};
+use botkit::{Job, Reply};
 
-use crate::commands::{Ctx, GenerateIntent, Outcome};
+use crate::commands::Ctx;
 
 const MAX_PROMPT_LEN: usize = 400;
 const COOLDOWN_SECS: i64 = 30;
+/// How long a generation may take before the bot gives up.
+const JOB_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Typed arguments for `/imagine`.
 pub struct ImagineArgs {
@@ -52,12 +55,46 @@ impl ImagineArgs {
         Ok(())
     }
 
-    /// Produce the outcome: a generate intent (or a cooldown error).
-    pub async fn reply(&self, ctx: &Ctx, chat_id: i64, user_id: Option<i64>) -> Result<Outcome> {
+    /// Produce the reply: run generation in the background and deliver the
+    /// photo (or an error) when ready.
+    pub async fn reply(&self, ctx: &Ctx, chat_id: i64, user_id: Option<i64>) -> Result<Reply> {
         self.enforce_cooldown(ctx, chat_id, user_id).await?;
-        Ok(Outcome::Generate(GenerateIntent {
-            prompt: self.prompt.clone(),
-        }))
+
+        let ctx = ctx.clone();
+        let prompt = self.prompt.clone();
+        Ok(Reply::Background {
+            placeholder: "🎨 generating…",
+            job: Job::new(JOB_TIMEOUT, move |job| {
+                Box::pin(async move {
+                    let image = ctx.generator.generate(&prompt).await?;
+                    // Store a compact JPEG copy, not the full PNG — the DB
+                    // would otherwise grow by megabytes per generation.
+                    let payload = match image.compact() {
+                        Ok(bytes) => Some(bytes),
+                        Err(e) => {
+                            tracing::warn!("failed to compact image for storage: {e:#}");
+                            None
+                        }
+                    };
+                    let record = storage::Record {
+                        id: None,
+                        chat_id: job.chat_id,
+                        user_id: job.user_id,
+                        kind: "image".to_string(),
+                        text: Some(prompt.clone()),
+                        payload,
+                        created_at: None,
+                    };
+                    if let Err(e) = ctx.storage.append(record).await {
+                        tracing::warn!("failed to record history: {e:#}");
+                    }
+                    Ok(Reply::Photo {
+                        bytes: image.bytes,
+                        caption: Some(format!("🎨 {prompt}")),
+                    })
+                })
+            }),
+        })
     }
 
     fn now_secs() -> i64 {
