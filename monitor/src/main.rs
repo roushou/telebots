@@ -6,7 +6,7 @@ mod db;
 mod poller;
 
 use anyhow::{Context, Result};
-use botkit::config::{Env, Key};
+use serde::Deserialize;
 
 /// One bot to watch: its display name and `/metrics` URL.
 #[derive(Debug, Clone)]
@@ -15,23 +15,11 @@ pub struct BotTarget {
     pub url: String,
 }
 
-/// Env var names, defined once so docs, code, and `.env.example` stay in
-/// sync.
-pub mod keys {
-    /// Comma-separated `name=url` pairs, e.g.
-    /// `degen=http://degen:9101/metrics`.
-    pub const BOTS: &str = "MONITOR_BOTS";
-    /// SQLite path (default `monitor.db`).
-    pub const DB_PATH: &str = "MONITOR_DB_PATH";
-    /// HTTP port (default 9110).
-    pub const PORT: &str = "MONITOR_PORT";
-}
-
 /// Default database path used when `MONITOR_DB_PATH` is unset.
 pub const DEFAULT_DB_PATH: &str = "monitor.db";
 
 /// Default port used when `MONITOR_PORT` is unset.
-pub const DEFAULT_PORT: &str = "9110";
+pub const DEFAULT_PORT: u16 = 9110;
 
 /// Fully validated runtime configuration.
 #[derive(Debug, Clone)]
@@ -41,25 +29,50 @@ pub struct Config {
     pub port: u16,
 }
 
+/// The raw environment variables, deserialized by the `config` crate.
+#[derive(Deserialize)]
+struct RawEnv {
+    /// Comma-separated `name=url` pairs (`MONITOR_BOTS`).
+    #[serde(rename = "monitor_bots")]
+    bots: String,
+    /// SQLite path (`MONITOR_DB_PATH`).
+    #[serde(rename = "monitor_db_path", default = "default_db_path")]
+    db_path: String,
+    /// HTTP port (`MONITOR_PORT`).
+    #[serde(rename = "monitor_port", default = "default_port")]
+    port: u16,
+}
+
+fn default_db_path() -> String {
+    DEFAULT_DB_PATH.to_string()
+}
+
+fn default_port() -> u16 {
+    DEFAULT_PORT
+}
+
 impl Config {
-    /// Load from the process environment (after `botkit::Env::load_file`).
+    /// Load from the process environment (the caller loads `.env` first).
     pub fn from_env() -> Result<Self> {
-        let env = Env::load(&[
-            Key::plain(keys::BOTS, "comma-separated name=url pairs"),
-            Key::optional(keys::DB_PATH).default(DEFAULT_DB_PATH),
-            Key::optional(keys::PORT).default(DEFAULT_PORT),
-        ])?;
-        let bots = Self::parse_targets(&env.require(keys::BOTS));
+        let raw: RawEnv = config::Config::builder()
+            .add_source(
+                config::Environment::default()
+                    .ignore_empty(true)
+                    .try_parsing(true),
+            )
+            .build()
+            .context("failed to read the environment")?
+            .try_deserialize()
+            .context("invalid configuration")?;
+
+        let bots = Self::parse_targets(&raw.bots);
         if bots.is_empty() {
             anyhow::bail!("MONITOR_BOTS has no valid name=url entries");
         }
         Ok(Self {
             bots,
-            db_path: env.require(keys::DB_PATH),
-            port: env
-                .require(keys::PORT)
-                .parse()
-                .context("MONITOR_PORT must be a number")?,
+            db_path: raw.db_path,
+            port: raw.port,
         })
     }
 
@@ -80,7 +93,7 @@ impl Config {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load this service's own .env (gitignored, per machine).
-    botkit::Env::load_file(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
+    dotenvy::from_path(concat!(env!("CARGO_MANIFEST_DIR"), "/.env")).ok();
     botkit::Telemetry::init("monitor");
 
     let config = Config::from_env()?;

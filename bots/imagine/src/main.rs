@@ -10,7 +10,7 @@ use crate::{config::Config, generator::Generator};
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load this bot's own .env (gitignored, per machine) regardless of CWD.
-    botkit::Env::load_file(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
+    dotenvy::from_path(concat!(env!("CARGO_MANIFEST_DIR"), "/.env")).ok();
     botkit::Telemetry::init("imagine");
 
     let config = Config::from_env()?;

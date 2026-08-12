@@ -4,67 +4,57 @@
 use std::fmt;
 
 use anyhow::{Context, Result};
-use botkit::config::{Env, Key};
-
-/// Env var names, defined once so docs, code, and `.env.example` stay in
-/// sync.
-pub mod keys {
-    /// Telegram bot token from @BotFather.
-    pub const TELEGRAM_BOT_TOKEN: &str = "TELEBOTS_TELEGRAM_API_KEY";
-    /// Cloudflare API token with Workers AI access.
-    pub const CLOUDFLARE_API_TOKEN: &str = "CLOUDFLARE_API_TOKEN";
-    /// Cloudflare account id (the Workers AI REST endpoint needs it).
-    pub const CLOUDFLARE_ACCOUNT_ID: &str = "CLOUDFLARE_ACCOUNT_ID";
-    /// SQLite database path (default: `imagine.db` in the working dir).
-    pub const DB_PATH: &str = "IMAGINE_DB_PATH";
-    /// Metrics port the monitor polls.
-    pub const METRICS_PORT: &str = "TELEBOTS_METRICS_PORT";
-}
+use serde::Deserialize;
 
 /// Default database path used when `IMAGINE_DB_PATH` is unset.
 pub const DEFAULT_DB_PATH: &str = "imagine.db";
 
 /// Default metrics port used when `TELEBOTS_METRICS_PORT` is unset.
-pub const DEFAULT_METRICS_PORT: &str = "9102";
+pub const DEFAULT_METRICS_PORT: u16 = 9102;
 
 /// Fully validated runtime configuration.
 ///
 /// `Debug` redacts secrets.
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub struct Config {
+    /// Telegram bot token from @BotFather (`TELEBOTS_TELEGRAM_API_KEY`).
+    #[serde(rename = "telebots_telegram_api_key")]
     pub telegram_bot_token: String,
+    /// Cloudflare API token with Workers AI access (`CLOUDFLARE_API_TOKEN`).
+    #[serde(rename = "cloudflare_api_token")]
     pub cloudflare_api_token: String,
+    /// Cloudflare account id (`CLOUDFLARE_ACCOUNT_ID`).
+    #[serde(rename = "cloudflare_account_id")]
     pub cloudflare_account_id: String,
+    /// SQLite database path (`IMAGINE_DB_PATH`).
+    #[serde(rename = "imagine_db_path", default = "default_db_path")]
     pub db_path: String,
+    /// Metrics port the monitor polls (`TELEBOTS_METRICS_PORT`).
+    #[serde(rename = "telebots_metrics_port", default = "default_metrics_port")]
     pub metrics_port: u16,
 }
 
+fn default_db_path() -> String {
+    DEFAULT_DB_PATH.to_string()
+}
+
+fn default_metrics_port() -> u16 {
+    DEFAULT_METRICS_PORT
+}
+
 impl Config {
-    /// Load from the process environment (after `botkit::Env::load_file`).
+    /// Load from the process environment (the caller loads `.env` first).
     pub fn from_env() -> Result<Self> {
-        let env = Env::load(&[
-            Key::secret(keys::TELEGRAM_BOT_TOKEN, "get a token from @BotFather"),
-            Key::secret(
-                keys::CLOUDFLARE_API_TOKEN,
-                "create one at dash.cloudflare.com with Workers AI permission",
-            ),
-            Key::plain(
-                keys::CLOUDFLARE_ACCOUNT_ID,
-                "find it in the Workers AI dashboard URL",
-            ),
-            Key::optional(keys::DB_PATH).default(DEFAULT_DB_PATH),
-            Key::optional(keys::METRICS_PORT).default(DEFAULT_METRICS_PORT),
-        ])?;
-        Ok(Self {
-            telegram_bot_token: env.require(keys::TELEGRAM_BOT_TOKEN),
-            cloudflare_api_token: env.require(keys::CLOUDFLARE_API_TOKEN),
-            cloudflare_account_id: env.require(keys::CLOUDFLARE_ACCOUNT_ID),
-            db_path: env.require(keys::DB_PATH),
-            metrics_port: env
-                .require(keys::METRICS_PORT)
-                .parse()
-                .context("TELEBOTS_METRICS_PORT must be a number")?,
-        })
+        config::Config::builder()
+            .add_source(
+                config::Environment::default()
+                    .ignore_empty(true)
+                    .try_parsing(true),
+            )
+            .build()
+            .context("failed to read the environment")?
+            .try_deserialize()
+            .context("invalid configuration")
     }
 }
 

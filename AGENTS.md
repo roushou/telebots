@@ -17,8 +17,8 @@ via Docker Compose.
 bots/<name>/          one self-contained bot: src/, Dockerfile, README.md,
                       .env (gitignored) + .env.example (committed)
 crates/botkit/        bot framework: app.rs (dispatcher runner),
-                      config.rs (env loader), health.rs (metrics server),
-                      telemetry.rs (tracing, panic hook)
+                      health.rs (metrics server), telemetry.rs (tracing,
+                      panic hook)
 crates/core/          shared library: blocks/ (Block, Cell, Line, Change)
                       and money/ (Money, Currency) — the document model
                       and value types; nothing renders domain data
@@ -63,10 +63,13 @@ goes in `crates/`.
   Imagine's `reply` returns an `Outcome` enum (`Text(Block)` | `Generate`
   intent) — no command calls `send_message`; generation runs in a background
   task spawned by `dispatch`.
-- **Env**: per-bot `.env` (gitignored, per machine) loaded by dotenvy via
-  `CARGO_MANIFEST_DIR`; `.env.example` is the committed template. Containers
-  get env from compose `env_file`. **Never commit real secrets** — update
-  the example when adding a variable.
+- **Env**: per-bot `.env` (gitignored, per machine) loaded into the process
+  env by dotenvy via `CARGO_MANIFEST_DIR`; each binary's `Config` derives
+  `serde::Deserialize` and reads the process env with the `config` crate
+  (`config::Environment`, field renames to the `SCREAMING_SNAKE_CASE` names).
+  `.env.example` is the committed template. Containers get env from compose
+  `env_file`. **Never commit real secrets** — update the example when adding
+  a variable.
 - **Persistence**: all state lives in SQLite via `crates/storage` — never
   in-memory. Bots open their own database (`Storage::open(path)`); the
   Imagine bot persists cooldowns (kv) and generation history (record log,

@@ -15,6 +15,7 @@ botkit = { path = "crates/botkit" }
 cloudflare-ai = { path = "crates/cloudflare-ai" }
 coinmarketcap = { path = "crates/coinmarketcap" }
 coingecko = { path = "crates/coingecko" }
+config = { version = "0.15", default-features = false }
 dotenvy = "0.15"
 reqwest = { version = "0.13", features = ["json", "query"] }
 serde = { version = "1", features = ["derive"] }

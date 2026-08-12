@@ -166,7 +166,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "dotenvy",
  "serde",
  "serde_json",
  "telebots-core",
@@ -315,6 +314,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "config"
+version = "0.15.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b85f248a4de22d204ceabc6299d89d2c70fbd7f09fea53c06c852369652d8139"
+dependencies = [
+ "pathdiff",
+ "serde_core",
+ "winnow",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -431,6 +441,9 @@ dependencies = [
  "botkit",
  "coingecko",
  "coinmarketcap",
+ "config",
+ "dotenvy",
+ "serde",
  "telebots-core",
  "teloxide",
  "tokio",
@@ -1052,7 +1065,10 @@ dependencies = [
  "anyhow",
  "botkit",
  "cloudflare-ai",
+ "config",
+ "dotenvy",
  "image",
+ "serde",
  "storage",
  "telebots-core",
  "teloxide",
@@ -1352,6 +1368,8 @@ dependencies = [
  "anyhow",
  "axum",
  "botkit",
+ "config",
+ "dotenvy",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -1414,6 +1432,12 @@ name = "openssl-probe"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
+
+[[package]]
+name = "pathdiff"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
 
 [[package]]
 name = "percent-encoding"
@@ -3005,6 +3029,15 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+
+[[package]]
+name = "winnow"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "writeable"
