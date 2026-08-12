@@ -29,9 +29,10 @@ check: fmt lint test build
 run bot='degen':
     cargo run -p {{ bot }}
 
-# Deploy to the VPS (builds and restarts containers)
-deploy:
-    ./deploy.sh
+# Build and (re)start the compose stack locally; first run also
+# provisions bots/*/.env from the .env.example templates
+up:
+    ./scripts/up.sh
 
 # Follow a bot's container logs
 logs bot='degen':

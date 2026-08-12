@@ -38,21 +38,21 @@ sudo systemctl enable --now docker
 sudo usermod -aG docker $USER   # optional; re-login to take effect
 ```
 
-Deploy (first run copies the env examples into place, then builds and starts):
+Bring the stack up (first run copies the env examples into place, then builds and starts):
 
 ```sh
 git clone https://github.com/roushou/telebots /opt/telebots
 cd /opt/telebots
-sudo ./deploy.sh
+sudo ./scripts/up.sh
 ```
 
-The first `deploy.sh` run creates `bots/*/.env` from the committed
+The first `up.sh` run creates `bots/*/.env` from the committed
 `.env.example` files and stops there. Fill in each bot's secrets (bot
-token, API keys) and re-run `sudo ./deploy.sh`. Containers receive
+token, API keys) and re-run `sudo ./scripts/up.sh`. Containers receive
 their env via compose `env_file`; nothing is baked into the image.
 
 **Adding/changing a variable:** edit `bots/<bot>/.env` on the VPS and
-restart with `sudo ./deploy.sh` (and add the key to
+restart with `sudo ./scripts/up.sh` (and add the key to
 `bots/<bot>/.env.example` in the repo).
 
 Useful commands:
@@ -78,7 +78,7 @@ Notes:
   from the internet, so the VPS firewall can drop inbound traffic.
 - Bots with persistent state (imagine) mount a data volume
   (`./data/<bot>:/data`); the SQLite database lives there, survives
-  redeploys, and is gitignored.
+  restarts, and is gitignored.
 - Local dev: see [Getting started](#getting-started) above — same code,
   no extra setup.
 

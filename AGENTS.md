@@ -23,7 +23,7 @@ crates/coinmarketcap/ CMC client: lib.rs (re-exports), client.rs (HTTP +
 crates/coingecko/     CoinGecko client: same lib/client/types shape
 crates/cloudflare-ai/ Cloudflare Workers AI client: same shape
 crates/storage/       reusable SQLite storage (async kv + record log)
-deploy.sh             repo-root deploy script (env provisioning + compose)
+scripts/up.sh          env provisioning + compose up (run from anywhere)
 docker-compose.yml    one service per bot
 justfile              developer commands
 ```
@@ -65,7 +65,7 @@ reach into another bot's files; shared behavior goes in `crates/`.
 just check      # fmt + clippy (-D warnings) + test + build — run before finishing
 just run        # run degen locally (or: just run <bot>)
 just test       # cargo test --workspace
-just deploy     # deploy.sh (VPS)
+just up         # scripts/up.sh — build and (re)start the compose stack
 ```
 
 CI runs fmt/clippy/test/build on Linux plus a build+test job on Windows.
@@ -105,9 +105,10 @@ before writing deserializers; do not assume endpoint availability.
   no `RequestResult` type in teloxide 0.17; use `ResponseResult`.
 - rustls resolves to `aws-lc-rs`, whose C build on Windows needs
   CMake/Go/Perl/NASM — the CI Windows job guards this.
-- `deploy.sh` lives at the repo root and resolves its own directory (no
-  `../..`). First run copies `bots/*/.env.example` → `bots/*/.env` and stops
-  for you to fill secrets; re-run to deploy.
+- `scripts/up.sh` resolves the repo root from its own location (no
+  `../..` paths, no CWD assumptions). First run copies
+  `bots/*/.env.example` → `bots/*/.env` and stops for you to fill secrets;
+  re-run to bring the stack up.
 - Docker build context excludes secrets (`.dockerignore`: `**/.env`,
   `bots/*/.env`); env reaches containers only via compose `env_file`.
 - Persistent bot data (SQLite) lives under `data/` — gitignored and

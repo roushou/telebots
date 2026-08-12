@@ -4,7 +4,8 @@
 # examples into place and stops so you can fill in real values.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "${SCRIPT_DIR}")"
 cd "${REPO_DIR}"
 
 created=0
@@ -20,7 +21,7 @@ done
 
 if [[ ${created} -gt 0 ]]; then
     echo
-    echo "==> Edit the env files above, then re-run: sudo ./deploy.sh"
+    echo "==> Edit the env files above, then re-run: sudo ./scripts/up.sh"
     exit 0
 fi
 
