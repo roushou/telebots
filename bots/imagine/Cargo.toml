@@ -6,12 +6,11 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+botkit.workspace = true
 cloudflare-ai.workspace = true
-dotenvy.workspace = true
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 storage.workspace = true
 telebots-core.workspace = true
 teloxide.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true

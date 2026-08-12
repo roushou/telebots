@@ -1,11 +1,13 @@
 //! Typed application configuration, loaded and validated from the
-//! environment once at startup. Loaded via dotenvy from the bot's own `.env`.
+//! environment once at startup.
 
-use std::{env, fmt};
+use std::fmt;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
+use botkit::config::{Env, Key};
 
-/// Env var names, defined once so docs, code, and `.env.example` stay in sync.
+/// Env var names, defined once so docs, code, and `.env.example` stay in
+/// sync.
 pub mod keys {
     /// Telegram bot token from @BotFather.
     pub const TELEGRAM_BOT_TOKEN: &str = "TELEBOTS_TELEGRAM_API_KEY";
@@ -22,7 +24,7 @@ pub const DEFAULT_DB_PATH: &str = "imagine.db";
 
 /// Fully validated runtime configuration.
 ///
-/// `Debug` redacts secrets so `Config` can be logged safely.
+/// `Debug` redacts secrets.
 #[derive(Clone)]
 pub struct Config {
     pub telegram_bot_token: String,
@@ -32,43 +34,25 @@ pub struct Config {
 }
 
 impl Config {
-    /// Load from the process environment (via dotenvy). Reports every
-    /// missing variable at once.
+    /// Load from the process environment (after `botkit::Env::load_file`).
     pub fn from_env() -> Result<Self> {
-        let mut errors = Vec::new();
-        let telegram_bot_token = required(
-            &mut errors,
-            keys::TELEGRAM_BOT_TOKEN,
-            "get a token from @BotFather",
-        );
-        let cloudflare_api_token = required(
-            &mut errors,
-            keys::CLOUDFLARE_API_TOKEN,
-            "create one at dash.cloudflare.com with Workers AI permission",
-        );
-        let cloudflare_account_id = required(
-            &mut errors,
-            keys::CLOUDFLARE_ACCOUNT_ID,
-            "find it in the Workers AI dashboard URL",
-        );
-        let db_path = optional(keys::DB_PATH).unwrap_or_else(|| DEFAULT_DB_PATH.to_string());
-
-        if !errors.is_empty() {
-            bail!(
-                "missing required environment variables:\n{}",
-                errors
-                    .iter()
-                    .map(|e| format!("  - {e}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            );
-        }
-
+        let env = Env::load(&[
+            Key::secret(keys::TELEGRAM_BOT_TOKEN, "get a token from @BotFather"),
+            Key::secret(
+                keys::CLOUDFLARE_API_TOKEN,
+                "create one at dash.cloudflare.com with Workers AI permission",
+            ),
+            Key::plain(
+                keys::CLOUDFLARE_ACCOUNT_ID,
+                "find it in the Workers AI dashboard URL",
+            ),
+            Key::optional(keys::DB_PATH).default(DEFAULT_DB_PATH),
+        ])?;
         Ok(Self {
-            telegram_bot_token,
-            cloudflare_api_token,
-            cloudflare_account_id,
-            db_path,
+            telegram_bot_token: env.require(keys::TELEGRAM_BOT_TOKEN),
+            cloudflare_api_token: env.require(keys::CLOUDFLARE_API_TOKEN),
+            cloudflare_account_id: env.require(keys::CLOUDFLARE_ACCOUNT_ID),
+            db_path: env.require(keys::DB_PATH),
         })
     }
 }
@@ -81,22 +65,5 @@ impl fmt::Debug for Config {
             .field("cloudflare_account_id", &"<redacted>")
             .field("db_path", &self.db_path)
             .finish()
-    }
-}
-
-fn required(errors: &mut Vec<String>, key: &str, hint: &str) -> String {
-    match env::var(key) {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => {
-            errors.push(format!("{key} must be set — {hint}"));
-            String::new()
-        }
-    }
-}
-
-fn optional(key: &str) -> Option<String> {
-    match env::var(key) {
-        Ok(v) if !v.trim().is_empty() => Some(v),
-        _ => None,
     }
 }

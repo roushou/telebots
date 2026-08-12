@@ -16,6 +16,8 @@ via Docker Compose.
 ```
 bots/<name>/          one self-contained bot: src/, Dockerfile, README.md,
                       .env (gitignored) + .env.example (committed)
+crates/botkit/        shared bot shell: app.rs (dispatcher runner), config.rs
+                      (env loader), telemetry.rs (tracing, panic hook)
 crates/core/          shared library: blocks/ (Block, Cell, Line, Change)
                       and money/ (Money, Currency) — the document model
                       and value types; nothing renders domain data
@@ -32,9 +34,9 @@ justfile              developer commands
 
 Client crates (coinmarketcap, coingecko, cloudflare-ai) are **standalone**
 — no Telebots dependencies, usable by anyone as crates.io crates. Telebots-
-side code — core (document model + value types), botkit (runtime, future),
-bots — sits above them. Bots never reach into another bot's files; shared
-behavior goes in `crates/`.
+side code — core (document model + value types), botkit (runtime), bots —
+sits above them. Bots never reach into another bot's files; shared behavior
+goes in `crates/`.
 
 ## Non-negotiable conventions
 
