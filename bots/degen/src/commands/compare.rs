@@ -58,8 +58,8 @@ mod tests {
     }
 
     #[test]
-    fn table_block_aligns_columns() {
-        let args = CompareArgs::parse("btc eth").unwrap();
+    fn table_block_aligns_columns() -> anyhow::Result<()> {
+        let args = CompareArgs::parse("btc eth")?;
         let quotes = [
             Quote {
                 id: Some(1),
@@ -86,5 +86,6 @@ mod tests {
             args.table_block(&quotes).build(),
             "📊 BTC vs ETH\nBTC  $95,432.1  ▲ +1.23%\nETH     $3,500  ▼ -0.50%"
         );
+        Ok(())
     }
 }

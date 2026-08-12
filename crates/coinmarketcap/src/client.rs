@@ -3,10 +3,12 @@
 
 use std::collections::HashMap;
 
-use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 
-use crate::types::{CoinInfo, FearGreed, GlobalMetrics, Quote};
+use crate::{
+    error::Error,
+    types::{CoinInfo, FearGreed, GlobalMetrics, Quote},
+};
 
 const API_BASE: &str = "https://pro-api.coinmarketcap.com";
 const DEFAULT_CONVERT: &str = "USD";
@@ -18,20 +20,19 @@ pub struct CmcClient {
 }
 
 impl CmcClient {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String) -> Result<Self, Error> {
         let http = reqwest::Client::builder()
             .user_agent(format!(
                 "{}/{}",
                 env!("CARGO_PKG_NAME"),
                 env!("CARGO_PKG_VERSION")
             ))
-            .build()
-            .expect("failed to build HTTP client");
-        Self { http, api_key }
+            .build()?;
+        Ok(Self { http, api_key })
     }
 
     /// Fetch latest quotes for one or more symbols (e.g. `["BTC", "ETH"]`).
-    pub async fn quotes(&self, symbols: &[String]) -> Result<Vec<Quote>> {
+    pub async fn quotes(&self, symbols: &[String]) -> Result<Vec<Quote>, Error> {
         let resp: QuotesResponse = self
             .get("/v1/cryptocurrency/quotes/latest")
             .query(&[
@@ -39,13 +40,10 @@ impl CmcClient {
                 ("convert", DEFAULT_CONVERT.to_string()),
             ])
             .send()
-            .await
-            .context("CoinMarketCap request failed")?
-            .error_for_status()
-            .context("CoinMarketCap returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("failed to parse CoinMarketCap response")?;
+            .await?;
 
         ensure_ok(resp.status)?;
 
@@ -55,7 +53,7 @@ impl CmcClient {
     }
 
     /// Convert `amount` of `symbol` into `to` (e.g. 100 BTC -> USD).
-    pub async fn convert(&self, amount: f64, symbol: &str, to: &str) -> Result<f64> {
+    pub async fn convert(&self, amount: f64, symbol: &str, to: &str) -> Result<f64, Error> {
         let resp: ConversionResponse = self
             .get("/v1/tools/price-conversion")
             .query(&[
@@ -64,13 +62,10 @@ impl CmcClient {
                 ("convert", to.to_uppercase()),
             ])
             .send()
-            .await
-            .context("CoinMarketCap request failed")?
-            .error_for_status()
-            .context("CoinMarketCap returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("failed to parse CoinMarketCap response")?;
+            .await?;
 
         ensure_ok(resp.status)?;
 
@@ -79,21 +74,20 @@ impl CmcClient {
             .quote
             .get(&key)
             .map(|q| q.price)
-            .with_context(|| format!("no quote for conversion target {key}"))
+            .ok_or_else(|| Error::MissingData {
+                what: format!("quote for conversion target {key}"),
+            })
     }
 
     /// Global market metrics: total cap, BTC/ETH dominance, 24h change.
-    pub async fn global_metrics(&self) -> Result<GlobalMetrics> {
+    pub async fn global_metrics(&self) -> Result<GlobalMetrics, Error> {
         let resp: GlobalMetricsResponse = self
             .get("/v1/global-metrics/quotes/latest")
             .send()
-            .await
-            .context("CoinMarketCap request failed")?
-            .error_for_status()
-            .context("CoinMarketCap returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("failed to parse CoinMarketCap response")?;
+            .await?;
 
         ensure_ok(resp.status)?;
 
@@ -101,7 +95,9 @@ impl CmcClient {
             .data
             .quote
             .get(DEFAULT_CONVERT)
-            .ok_or_else(|| anyhow::anyhow!("global metrics missing USD quote"))?;
+            .ok_or(Error::MissingData {
+                what: "USD quote in global metrics".to_string(),
+            })?;
         Ok(GlobalMetrics {
             total_market_cap: usd.total_market_cap,
             change_24h: usd.total_market_cap_yesterday_percentage_change,
@@ -112,7 +108,7 @@ impl CmcClient {
 
     /// Metadata (category, description, website) for symbols. Resolves each
     /// symbol to a CMC id via `quotes/latest`, then fetches `/info`.
-    pub async fn info(&self, symbols: &[String]) -> Result<Vec<CoinInfo>> {
+    pub async fn info(&self, symbols: &[String]) -> Result<Vec<CoinInfo>, Error> {
         let quotes = self.quotes(symbols).await?;
         let ids: Vec<String> = quotes
             .iter()
@@ -120,20 +116,17 @@ impl CmcClient {
             .map(|id| id.to_string())
             .collect();
         if ids.is_empty() {
-            bail!("no price data for the given symbols");
+            return Err(Error::NoSymbols);
         }
 
         let resp: InfoResponse = self
             .get("/v1/cryptocurrency/info")
             .query(&[("id", ids.join(","))])
             .send()
-            .await
-            .context("CoinMarketCap request failed")?
-            .error_for_status()
-            .context("CoinMarketCap returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("failed to parse CoinMarketCap response")?;
+            .await?;
 
         ensure_ok(resp.status)?;
 
@@ -153,17 +146,14 @@ impl CmcClient {
     ///
     /// CMC serves this on its keyless public API (no key, no header) at
     /// `/public-api/v3/fear-and-greed/latest`.
-    pub async fn fear_greed(&self) -> Result<FearGreed> {
+    pub async fn fear_greed(&self) -> Result<FearGreed, Error> {
         let resp: FearGreedResponse = self
             .get_public("/public-api/v3/fear-and-greed/latest")
             .send()
-            .await
-            .context("CoinMarketCap request failed")?
-            .error_for_status()
-            .context("CoinMarketCap returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("failed to parse CoinMarketCap response")?;
+            .await?;
 
         Ok(FearGreed {
             value: resp.data.value,
@@ -214,15 +204,14 @@ impl CoinInfo {
     }
 }
 
-fn ensure_ok(status: ApiStatus) -> Result<()> {
+fn ensure_ok(status: ApiStatus) -> Result<(), Error> {
     if status.error_code == 0 {
         Ok(())
     } else {
-        bail!(
-            "CoinMarketCap error {}: {}",
-            status.error_code,
-            status.error_message.unwrap_or_default()
-        )
+        Err(Error::Api {
+            code: status.error_code,
+            message: status.error_message.unwrap_or_default(),
+        })
     }
 }
 

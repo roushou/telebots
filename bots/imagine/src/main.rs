@@ -15,19 +15,19 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
     let bot = Bot::new(config.telegram_bot_token);
-    let ctx = commands::Ctx {
-        generator: Generator::cloudflare(config.cloudflare_account_id, config.cloudflare_api_token),
-        storage: Storage::open(&config.db_path).await?,
-    };
+    let generator =
+        Generator::cloudflare(config.cloudflare_account_id, config.cloudflare_api_token)?;
+    let storage = Storage::open(&config.db_path).await?;
+    let ctx = commands::Ctx { generator, storage };
 
     commands::Command::register_menu(&bot).await?;
 
-    botkit::App::new(
+    Ok(botkit::App::new(
         "imagine",
         env!("CARGO_PKG_VERSION"),
         ctx,
         commands::routes(),
     )
     .run(bot)
-    .await
+    .await?)
 }

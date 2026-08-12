@@ -1,5 +1,9 @@
 //! The reply model: what a command wants the bot to do, and the single
 //! place that executes it.
+//!
+//! [`Reply::Background`] jobs and [`dispatch`] carry [`anyhow::Result`]
+//! because the command layer lives in the binaries and authors its errors
+//! with `anyhow`; botkit only transports and renders them (`⚠️ {e:#}`).
 
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 

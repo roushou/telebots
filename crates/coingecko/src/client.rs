@@ -1,10 +1,9 @@
 //! The CoinGecko HTTP client and its wire-format response types. The public
 //! data type lives in [`types`].
 
-use anyhow::{Context, Result};
 use serde::Deserialize;
 
-use crate::types::TrendingCoin;
+use crate::{error::Error, types::TrendingCoin};
 
 const API_BASE: &str = "https://api.coingecko.com/api/v3";
 
@@ -14,7 +13,7 @@ pub struct CoinGeckoClient {
 }
 
 impl CoinGeckoClient {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Error> {
         let http = reqwest::Client::builder()
             // CoinGecko asks clients to identify themselves.
             .user_agent(format!(
@@ -22,24 +21,20 @@ impl CoinGeckoClient {
                 env!("CARGO_PKG_NAME"),
                 env!("CARGO_PKG_VERSION")
             ))
-            .build()
-            .expect("failed to build HTTP client");
-        Self { http }
+            .build()?;
+        Ok(Self { http })
     }
 
     /// The `limit` most-trending coins right now.
-    pub async fn trending(&self, limit: usize) -> Result<Vec<TrendingCoin>> {
+    pub async fn trending(&self, limit: usize) -> Result<Vec<TrendingCoin>, Error> {
         let resp: TrendingResponse = self
             .http
             .get(format!("{API_BASE}/search/trending"))
             .send()
-            .await
-            .context("CoinGecko request failed")?
-            .error_for_status()
-            .context("CoinGecko returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("failed to parse CoinGecko response")?;
+            .await?;
 
         Ok(resp
             .coins
@@ -52,12 +47,6 @@ impl CoinGeckoClient {
                 change_24h: c.item.data.price_change_percentage_24h.and_then(|m| m.usd),
             })
             .collect())
-    }
-}
-
-impl Default for CoinGeckoClient {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

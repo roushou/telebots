@@ -16,14 +16,15 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
     let bot = Bot::new(config.telegram_bot_token);
-    let ctx = commands::Ctx {
-        cmc: CmcClient::new(config.coinmarketcap_api_key),
-        coingecko: CoinGeckoClient::new(),
-    };
+    let cmc = CmcClient::new(config.coinmarketcap_api_key)?;
+    let coingecko = CoinGeckoClient::new()?;
+    let ctx = commands::Ctx { cmc, coingecko };
 
     commands::Command::register_menu(&bot).await?;
 
-    botkit::App::new("degen", env!("CARGO_PKG_VERSION"), ctx, commands::routes())
-        .run(bot)
-        .await
+    Ok(
+        botkit::App::new("degen", env!("CARGO_PKG_VERSION"), ctx, commands::routes())
+            .run(bot)
+            .await?,
+    )
 }

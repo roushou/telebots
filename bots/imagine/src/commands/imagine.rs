@@ -112,11 +112,11 @@ mod tests {
     use super::*;
     use crate::{commands::Ctx, generator::Generator};
 
-    async fn ctx() -> Ctx {
-        Ctx {
-            generator: Generator::cloudflare("acct".into(), "tok".into()),
-            storage: Storage::open(":memory:").await.unwrap(),
-        }
+    async fn ctx() -> anyhow::Result<Ctx> {
+        Ok(Ctx {
+            generator: Generator::cloudflare("acct".into(), "tok".into())?,
+            storage: Storage::open(":memory:").await?,
+        })
     }
 
     #[test]
@@ -126,28 +126,33 @@ mod tests {
     }
 
     #[test]
-    fn parse_trims_and_caps_length() {
-        let args = ImagineArgs::parse("  a cat  ").unwrap();
+    fn parse_trims_and_caps_length() -> anyhow::Result<()> {
+        let args = ImagineArgs::parse("  a cat  ")?;
         assert_eq!(args.prompt, "a cat");
         let long = "x".repeat(MAX_PROMPT_LEN + 1);
         assert!(ImagineArgs::parse(&long).is_err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn cooldown_blocks_repeated_requests() {
-        let ctx = ctx().await;
-        let args = ImagineArgs::parse("a cat").unwrap();
+    async fn cooldown_blocks_repeated_requests() -> anyhow::Result<()> {
+        let ctx = ctx().await?;
+        let args = ImagineArgs::parse("a cat")?;
         assert!(args.reply(&ctx, 1, Some(42)).await.is_ok());
         let outcome = args.reply(&ctx, 1, Some(42)).await;
-        let err = outcome.err().expect("second request should be blocked");
+        let err = outcome
+            .err()
+            .ok_or_else(|| anyhow::anyhow!("second request should be blocked"))?;
         assert!(format!("{err:#}").contains("try again"));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn cooldown_is_per_user() {
-        let ctx = ctx().await;
-        let args = ImagineArgs::parse("a cat").unwrap();
+    async fn cooldown_is_per_user() -> anyhow::Result<()> {
+        let ctx = ctx().await?;
+        let args = ImagineArgs::parse("a cat")?;
         assert!(args.reply(&ctx, 1, Some(42)).await.is_ok());
         assert!(args.reply(&ctx, 1, Some(7)).await.is_ok());
+        Ok(())
     }
 }

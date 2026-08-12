@@ -6,7 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde_json::Value;
 use storage::{Storage, rusqlite::types::Value as SqlValue};
 
@@ -42,9 +42,7 @@ impl Db {
     /// snapshots schema exists.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref().to_owned();
-        let storage = Storage::open(&path)
-            .await
-            .with_context(|| format!("failed to open database at {}", path.display()))?;
+        let storage = Storage::open(&path).await?;
         storage.execute_batch(SNAPSHOTS_DDL).await?;
         Ok(Self { storage })
     }
@@ -72,19 +70,21 @@ impl Db {
 
     /// The newest snapshot per bot.
     pub async fn latest_per_bot(&self) -> Result<Vec<Snapshot>> {
-        self.storage
+        Ok(self
+            .storage
             .query(
                 "SELECT bot, ts, status, error FROM snapshots s
                  WHERE ts = (SELECT MAX(ts) FROM snapshots WHERE bot = s.bot)",
                 &[],
                 Self::row_to_snapshot,
             )
-            .await
+            .await?)
     }
 
     /// The newest `limit` snapshots for one bot, newest first.
     pub async fn history(&self, bot: &str, limit: usize) -> Result<Vec<Snapshot>> {
-        self.storage
+        Ok(self
+            .storage
             .query(
                 "SELECT bot, ts, status, error FROM snapshots
                  WHERE bot = ?1 ORDER BY ts DESC LIMIT ?2",
@@ -94,7 +94,7 @@ impl Db {
                 ],
                 Self::row_to_snapshot,
             )
-            .await
+            .await?)
     }
 
     fn row_to_snapshot(row: &storage::rusqlite::Row<'_>) -> storage::rusqlite::Result<Snapshot> {

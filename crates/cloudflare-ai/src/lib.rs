@@ -4,7 +4,9 @@
 //! lives in [`types`].
 
 mod client;
+mod error;
 mod types;
 
 pub use client::CloudflareAiClient;
+pub use error::Error;
 pub use types::GeneratedImage;

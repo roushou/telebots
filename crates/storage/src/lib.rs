@@ -8,13 +8,14 @@
 //! [`Storage`] owns the connection. Queries run on a blocking thread; the
 //! API is fully async.
 
+mod error;
 mod kv;
 mod records;
 mod sql;
 
 use std::{path::Path, sync::Arc};
 
-use anyhow::{Context, Result};
+pub use error::Error;
 pub use records::Record;
 pub use rusqlite;
 use rusqlite::Connection;
@@ -29,11 +30,13 @@ pub struct Storage {
 impl Storage {
     /// Open (creating if missing) the database at `path` and ensure the
     /// schema exists. Pass `:memory:` for an in-memory database.
-    pub async fn open(path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
         let path = path.as_ref().to_owned();
         tokio::task::spawn_blocking(move || {
-            let conn = Connection::open(&path)
-                .with_context(|| format!("failed to open database at {}", path.display()))?;
+            let conn = Connection::open(&path).map_err(|source| Error::Open {
+                path: path.clone(),
+                source,
+            })?;
             create_schema(&conn)?;
             Ok(Self {
                 inner: Arc::new(Mutex::new(conn)),
@@ -45,8 +48,8 @@ impl Storage {
     /// Run `f` against the connection on a blocking thread.
     async fn with_conn<T>(
         &self,
-        f: impl FnOnce(&Connection) -> Result<T> + Send + 'static,
-    ) -> Result<T>
+        f: impl FnOnce(&Connection) -> Result<T, Error> + Send + 'static,
+    ) -> Result<T, Error>
     where
         T: Send + 'static,
     {
@@ -59,7 +62,7 @@ impl Storage {
     }
 }
 
-fn create_schema(conn: &Connection) -> Result<()> {
+fn create_schema(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(
         "PRAGMA journal_mode=WAL;
          PRAGMA synchronous=NORMAL;

@@ -5,7 +5,9 @@
 //! [`types`].
 
 mod client;
+mod error;
 mod types;
 
 pub use client::CmcClient;
+pub use error::Error;
 pub use types::{CoinInfo, FearGreed, GlobalMetrics, Quote};

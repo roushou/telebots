@@ -65,16 +65,18 @@ mod tests {
     }
 
     #[test]
-    fn parse_defaults_to_usd() {
-        let args = ConvertArgs::parse("100 btc").unwrap();
+    fn parse_defaults_to_usd() -> anyhow::Result<()> {
+        let args = ConvertArgs::parse("100 btc")?;
         assert_eq!(args.amount, 100.0);
         assert_eq!(args.symbol, "BTC");
         assert_eq!(args.to, "USD");
+        Ok(())
     }
 
     #[test]
-    fn format_line() {
-        let args = ConvertArgs::parse("100 btc usd").unwrap();
+    fn format_line() -> anyhow::Result<()> {
+        let args = ConvertArgs::parse("100 btc usd")?;
         assert_eq!(args.format_line(6_700_000.0), "💱 100 BTC = $6,700,000");
+        Ok(())
     }
 }

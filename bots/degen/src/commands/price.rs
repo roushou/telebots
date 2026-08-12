@@ -50,8 +50,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_uppercases_symbols() {
-        let args = PriceArgs::parse("btc eth").unwrap();
+    fn parse_uppercases_symbols() -> anyhow::Result<()> {
+        let args = PriceArgs::parse("btc eth")?;
         assert_eq!(&*args.symbols, &["BTC".to_string(), "ETH".to_string()]);
+        Ok(())
     }
 }

@@ -171,6 +171,7 @@ dependencies = [
  "serde_json",
  "telebots-core",
  "teloxide",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -260,11 +261,11 @@ dependencies = [
 name = "cloudflare-ai"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "base64",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -280,18 +281,18 @@ dependencies = [
 name = "coingecko"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "reqwest 0.13.4",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
 name = "coinmarketcap"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "reqwest 0.13.4",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2199,8 +2200,8 @@ dependencies = [
 name = "storage"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "rusqlite",
+ "thiserror",
  "tokio",
 ]
 

@@ -86,8 +86,10 @@ pub enum Generator {
 }
 
 impl Generator {
-    pub fn cloudflare(account_id: String, api_token: String) -> Self {
-        Self::Cloudflare(CloudflareAiClient::new(account_id, api_token))
+    pub fn cloudflare(account_id: String, api_token: String) -> Result<Self> {
+        Ok(Self::Cloudflare(CloudflareAiClient::new(
+            account_id, api_token,
+        )?))
     }
 
     /// Generate an image from `prompt`.

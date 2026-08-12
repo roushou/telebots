@@ -38,26 +38,27 @@ mod tests {
     use super::*;
     use crate::{commands::Ctx, generator::Generator};
 
-    async fn ctx() -> Ctx {
-        Ctx {
-            generator: Generator::cloudflare("acct".into(), "tok".into()),
-            storage: Storage::open(":memory:").await.unwrap(),
-        }
+    async fn ctx() -> anyhow::Result<Ctx> {
+        Ok(Ctx {
+            generator: Generator::cloudflare("acct".into(), "tok".into())?,
+            storage: Storage::open(":memory:").await?,
+        })
     }
 
     #[tokio::test]
-    async fn empty_history_has_hint() {
-        let ctx = ctx().await;
-        let outcome = History.reply(&ctx, 1).await.unwrap();
+    async fn empty_history_has_hint() -> anyhow::Result<()> {
+        let ctx = ctx().await?;
+        let outcome = History.reply(&ctx, 1).await?;
         let Reply::Text(block) = outcome else {
-            panic!("expected text reply");
+            anyhow::bail!("expected text reply");
         };
         assert_eq!(block.build(), "No images yet — try /imagine <prompt>");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn lists_recent_prompts() {
-        let ctx = ctx().await;
+    async fn lists_recent_prompts() -> anyhow::Result<()> {
+        let ctx = ctx().await?;
         for prompt in ["a cat", "a dog"] {
             ctx.storage
                 .append(Record {
@@ -69,15 +70,15 @@ mod tests {
                     payload: None,
                     created_at: None,
                 })
-                .await
-                .unwrap();
+                .await?;
         }
-        let outcome = History.reply(&ctx, 1).await.unwrap();
+        let outcome = History.reply(&ctx, 1).await?;
         let Reply::Text(block) = outcome else {
-            panic!("expected text reply");
+            anyhow::bail!("expected text reply");
         };
         let text = block.build();
         assert!(text.contains("a cat"));
         assert!(text.contains("a dog"));
+        Ok(())
     }
 }

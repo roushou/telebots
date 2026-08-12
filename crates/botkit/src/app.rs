@@ -3,14 +3,31 @@
 
 use std::time::Duration;
 
-use anyhow::{Context, Result};
 use teloxide::{RequestError, dispatching::UpdateHandler, prelude::*};
+use thiserror::Error;
 
 use crate::{
     health::Server,
     metrics::Metrics,
     reply::{Runtime, Supervisor},
 };
+
+/// Errors surfaced while starting the bot shell.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum AppError {
+    /// The Telegram token was rejected (revoked or invalid).
+    #[error("getMe failed — check the bot token")]
+    GetMe(#[source] teloxide::RequestError),
+
+    /// The metrics port could not be bound.
+    #[error("failed to bind metrics port {port}")]
+    Bind {
+        port: u16,
+        #[source]
+        source: std::io::Error,
+    },
+}
 
 /// How long shutdown waits for in-flight background jobs.
 const DRAIN_GRACE: Duration = Duration::from_secs(15);
@@ -46,22 +63,19 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
 
     /// Run the poller. `bot` is the configured bot; the caller registers
     /// the command menu on it first.
-    pub async fn run(self, bot: Bot) -> Result<()> {
+    pub async fn run(self, bot: Bot) -> Result<(), AppError> {
         let _span = tracing::info_span!("app", service = self.service).entered();
 
         // A revoked/invalid token must fail fast instead of polling
         // silently into the void.
-        let me = bot
-            .get_me()
-            .await
-            .context("getMe failed — check the bot token")?;
+        let me = bot.get_me().await.map_err(AppError::GetMe)?;
         tracing::info!("{} started (telegram: @{})", self.service, me.username());
 
         let metrics = Metrics::new(self.service, self.version);
         let port = Server::port_for(self.service);
         let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
             .await
-            .with_context(|| format!("failed to bind metrics port {port}"))?;
+            .map_err(|source| AppError::Bind { port, source })?;
         Server::serve(listener, metrics.clone());
         Self::install_panic_hook(metrics.clone());
         Self::spawn_heartbeat(bot.clone(), metrics.clone());
@@ -77,7 +91,10 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
 
         let shutdown_token = dispatcher.shutdown_token();
         tokio::spawn(async move {
-            Self::wait_for_shutdown_signal().await;
+            if let Err(e) = Self::wait_for_shutdown_signal().await {
+                tracing::error!("failed to install shutdown signal handler: {e}");
+                return;
+            }
             tracing::info!("shutdown signal received");
             let _ = shutdown_token.shutdown();
         });
@@ -125,22 +142,20 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
     }
 
     /// Resolves on SIGTERM (container stop/restart) or Ctrl+C (local dev).
-    async fn wait_for_shutdown_signal() {
+    async fn wait_for_shutdown_signal() -> std::io::Result<()> {
         #[cfg(unix)]
         {
             use tokio::signal::unix::{SignalKind, signal};
-            let mut sigterm =
-                signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+            let mut sigterm = signal(SignalKind::terminate())?;
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {}
                 _ = sigterm.recv() => {}
             }
+            Ok(())
         }
         #[cfg(not(unix))]
         {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("failed to install Ctrl+C handler");
+            tokio::signal::ctrl_c().await
         }
     }
 }

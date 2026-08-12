@@ -2,7 +2,13 @@
 
 use std::{collections::HashMap, env, fmt, path::Path};
 
-use anyhow::{Result, bail};
+use thiserror::Error;
+
+/// Missing required configuration; the message lists every missing variable
+/// with its hint.
+#[derive(Debug, Error)]
+#[error("missing required environment variables:\n{0}")]
+pub struct ConfigError(pub String);
 
 /// One environment variable a bot reads.
 #[derive(Debug, Clone, Copy)]
@@ -73,7 +79,7 @@ impl Env {
 
     /// Load `spec` from the process environment; every missing required
     /// variable is reported at once, each with its hint.
-    pub fn load(spec: &[Key]) -> Result<Self> {
+    pub fn load(spec: &[Key]) -> Result<Self, ConfigError> {
         Self::load_from(spec, &|k| env::var(k))
     }
 
@@ -82,7 +88,7 @@ impl Env {
     fn load_from(
         spec: &[Key],
         read: &dyn Fn(&str) -> Result<String, env::VarError>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ConfigError> {
         let mut values = HashMap::new();
         let mut errors = Vec::new();
 
@@ -103,10 +109,7 @@ impl Env {
         }
 
         if !errors.is_empty() {
-            bail!(
-                "missing required environment variables:\n{}",
-                errors.join("\n")
-            );
+            return Err(ConfigError(errors.join("\n")));
         }
 
         Ok(Self {
@@ -150,7 +153,7 @@ mod tests {
 
     use super::*;
 
-    fn load_with(spec: &[Key], vars: &[(&str, &str)]) -> Result<Env> {
+    fn load_with(spec: &[Key], vars: &[(&str, &str)]) -> Result<Env, ConfigError> {
         let map: HashMap<String, String> = vars
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))

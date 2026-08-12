@@ -2,9 +2,8 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::Result;
-
 use super::Storage;
+use crate::Error;
 
 /// One entry in the append-only log.
 #[derive(Debug, Clone)]
@@ -26,7 +25,7 @@ pub struct Record {
 impl Storage {
     /// Append a record to the log; returns its id. `created_at` defaults to
     /// now when `None`.
-    pub async fn append(&self, record: Record) -> Result<u64> {
+    pub async fn append(&self, record: Record) -> Result<u64, Error> {
         let created_at = record.created_at.unwrap_or_else(|| {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -52,7 +51,12 @@ impl Storage {
     }
 
     /// The `limit` most recent records for a chat and kind, newest first.
-    pub async fn recent(&self, chat_id: i64, kind: &str, limit: usize) -> Result<Vec<Record>> {
+    pub async fn recent(
+        &self,
+        chat_id: i64,
+        kind: &str,
+        limit: usize,
+    ) -> Result<Vec<Record>, Error> {
         let kind = kind.to_owned();
         self.with_conn(move |conn| {
             let mut stmt = conn.prepare(
@@ -97,23 +101,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn records_are_newest_first_and_filtered() {
-        let store = Storage::open(":memory:").await.unwrap();
-        store.append(record(1, "image", "a cat")).await.unwrap();
-        store.append(record(1, "image", "a dog")).await.unwrap();
-        store.append(record(1, "other", "ignored")).await.unwrap();
-        store
-            .append(record(2, "image", "other chat"))
-            .await
-            .unwrap();
+    async fn records_are_newest_first_and_filtered() -> Result<(), Error> {
+        let store = Storage::open(":memory:").await?;
+        store.append(record(1, "image", "a cat")).await?;
+        store.append(record(1, "image", "a dog")).await?;
+        store.append(record(1, "other", "ignored")).await?;
+        store.append(record(2, "image", "other chat")).await?;
 
-        let recent = store.recent(1, "image", 10).await.unwrap();
+        let recent = store.recent(1, "image", 10).await?;
         let texts: Vec<String> = recent.iter().filter_map(|r| r.text.clone()).collect();
         assert_eq!(texts, ["a dog", "a cat"]);
         assert!(recent[0].id.is_some());
 
-        let limited = store.recent(1, "image", 1).await.unwrap();
+        let limited = store.recent(1, "image", 1).await?;
         assert_eq!(limited.len(), 1);
         assert_eq!(limited[0].text.as_deref(), Some("a dog"));
+        Ok(())
     }
 }
