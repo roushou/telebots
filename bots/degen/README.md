@@ -6,7 +6,7 @@ A Telegram crypto bot.
 
 ```sh
 cp bots/degen/.env.example bots/degen/.env   # fill in the keys
-just run                                     # cargo run -p degen; loads its .env
+mise run bot degen                           # cargo run -p degen; loads its .env
 ```
 
 Use a separate test bot token from @BotFather for local dev.

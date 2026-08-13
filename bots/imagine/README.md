@@ -8,7 +8,7 @@ photo; recent generations are stored in SQLite and listed with `/history`.
 
 ```sh
 cp bots/imagine/.env.example bots/imagine/.env   # fill in the keys
-just run imagine                                 # cargo run -p imagine
+mise run bot imagine                             # cargo run -p imagine
 ```
 
 Use a separate test bot token from @BotFather for local dev.

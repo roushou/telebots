@@ -18,8 +18,9 @@ loopback interface, so nothing extra is exposed.
 
 ```sh
 cp monitor/.env.example monitor/.env   # fill in the bot list
-just run monitor                       # cargo run -p monitor (the JSON API)
-cd monitor/web && bun install && bun run dev   # dashboard dev server on :3000
+mise run bot monitor                   # cargo run -p monitor (the JSON API)
+cd monitor/web && bun install                  # one-time: fetch JS deps (bun from mise)
+mise run web                                   # dashboard dev server on :3000
 ```
 
 The dev server fetches bot data from `http://127.0.0.1:9110` (the local

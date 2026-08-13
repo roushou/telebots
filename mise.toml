@@ -1,0 +1,67 @@
+# Telebots — toolchain + developer tasks (mise)
+#
+#   mise install          install the pinned tools (bun)
+#   mise tasks            list all tasks
+#   mise run <task>       run a task (bare `mise run` runs the `default` task)
+#   mise run check        everything CI runs — run before pushing
+
+[tools]
+# Rust is intentionally not listed here: `rust-toolchain.toml` (channel =
+# "nightly") is the single source of truth for the Rust toolchain and is
+# managed by rustup (CI's dtolnay/rust-toolchain action reads the same
+# file). mise only manages the dashboard's JS runtime, matching
+# `oven/bun:1` in monitor/Dockerfile.
+bun = "1"
+
+[tasks.fmt]
+description = "Check formatting (CI parity)"
+run = "cargo fmt --all --check"
+
+[tasks.lint]
+description = "Clippy with warnings denied (CI parity)"
+run = "cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks.test]
+description = "Run the test suite"
+run = "cargo test --workspace"
+
+[tasks.build]
+description = "Build the whole workspace"
+run = "cargo build --workspace"
+
+# Sequential on purpose — cargo steps share the target dir, so running them
+# in parallel would just thrash on the build lock. Order matches CI.
+[tasks.check]
+description = "fmt + clippy + test + build — what CI runs"
+run = [
+    "cargo fmt --all --check",
+    "cargo clippy --workspace --all-targets -- -D warnings",
+    "cargo test --workspace",
+    "cargo build --workspace",
+]
+
+[tasks.bot]
+description = "Run a workspace binary locally with its dev token from .env (degen, imagine, monitor)"
+usage = 'arg "<bot>" help="Workspace binary to run (degen, imagine, monitor)"'
+run = "cargo run -p {{usage.bot}}"
+
+[tasks.up]
+description = "Build and (re)start the compose stack; first run provisions bots/*/.env from the .env.example templates"
+run = "./scripts/up.sh"
+
+[tasks.web]
+description = "Run the dashboard dev server on :3000 (needs `mise run bot monitor` for data)"
+dir = "monitor/web"
+run = "bun run dev"
+
+[tasks.web.env]
+MONITOR_API_URL = "http://127.0.0.1:9110"
+
+[tasks.logs]
+description = "Follow a container's logs"
+usage = 'arg "<bot>" help="Container name (degen, imagine, monitor)"'
+run = "docker compose logs -f {{usage.bot}}"
+
+[tasks.default]
+description = "Run the full check (bare `mise run`)"
+depends = ["check"]

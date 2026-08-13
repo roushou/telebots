@@ -34,7 +34,7 @@ monitor/              admin dashboard: polls each bot's /metrics (JSON),
                       127.0.0.1:3000 + internal JSON API (9110)
 scripts/up.sh          env provisioning + compose up (run from anywhere)
 docker-compose.yml    one service per bot
-justfile              developer commands
+mise.toml             toolchain (bun) + dev tasks (mise run …)
 ```
 
 Client crates (coinmarketcap, coingecko, cloudflare-ai) are **standalone**
@@ -95,10 +95,12 @@ goes in `crates/`.
 ## Commands
 
 ```sh
-just check      # fmt + clippy (-D warnings) + test + build — run before finishing
-just run        # run degen locally (or: just run <bot>)
-just test       # cargo test --workspace
-just up         # scripts/up.sh — build and (re)start the compose stack
+mise install    # install pinned tools (bun); Rust via rustup + rust-toolchain.toml
+mise tasks      # list all tasks
+mise run check  # fmt + clippy (-D warnings) + test + build — run before finishing
+mise run bot    # run a workspace binary locally (degen, imagine, monitor)
+mise run test   # cargo test --workspace
+mise run up     # scripts/up.sh — build and (re)start the compose stack
 ```
 
 CI runs fmt/clippy/test/build on Linux plus a build+test job on Windows.

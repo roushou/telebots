@@ -13,11 +13,15 @@ A bunch of Telegram bots to make Telegram better.
 Bots use long polling: they pull updates from Telegram outbound, so no
 public URL, tunnel or reverse proxy is needed.
 
+Dev tools are managed with [mise](https://mise.jdx.dev/): `mise install`
+fetches `bun`, and `mise run <task>` runs the dev tasks. Rust comes from
+rustup — `rust-toolchain.toml` pins nightly, installed on the first build.
+
 Each bot ships its own `.env.example`. Copy it, fill in the keys, and run:
 
 ```sh
 cp bots/degen/.env.example bots/degen/.env
-just run
+mise run bot degen
 ```
 
 > [!NOTE]
