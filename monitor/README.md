@@ -17,7 +17,6 @@ loopback interface, so nothing extra is exposed.
 ## Setup
 
 ```sh
-cp monitor/.env.example monitor/.env   # fill in the bot list
 mise run bot monitor                   # cargo run -p monitor (the JSON API)
 cd monitor/web && bun install                  # one-time: fetch JS deps (bun from mise)
 mise run web                                   # dashboard dev server on :3000
@@ -26,12 +25,12 @@ mise run web                                   # dashboard dev server on :3000
 The dev server fetches bot data from `http://127.0.0.1:9110` (the local
 monitor). Override with `MONITOR_API_URL` if the API lives elsewhere.
 
-| Variable          | Where to get it                                          |
-| ----------------- | -------------------------------------------------------- |
-| `MONITOR_BOTS`    | Comma-separated `name=url` pairs of bot `/metrics` endpoints. In compose the names resolve on the network (`http://degen:9101/metrics`); locally use `http://localhost:9101/metrics` |
-| `MONITOR_DB_PATH` | SQLite path (default `monitor.db`; `/data/monitor.db` in the container) |
-| `MONITOR_PORT`    | JSON API port (default 9110, in-container only)          |
-| `MONITOR_API_URL` | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`) |
+| Variable          | Where it's set                                              |
+| ----------------- | ----------------------------------------------------------- |
+| `MONITOR_BOTS`    | Bot `/metrics` endpoints. Local dev: `mise.toml` (`http://localhost:9101/metrics`); container: `docker-compose.yml` (compose network URLs) |
+| `MONITOR_DB_PATH` | SQLite path (default `monitor.db` locally; `/data/monitor.db` in the container via `docker-compose.yml`) |
+| `MONITOR_PORT`    | JSON API port (default `9110`; set in `docker-compose.yml`) |
+| `MONITOR_API_URL` | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`; set in `mise.toml` for the `web` task) |
 
 ## API
 

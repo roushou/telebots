@@ -13,6 +13,9 @@
 # `oven/bun:1` in monitor/Dockerfile.
 bun = "1"
 
+[env]
+MONITOR_BOTS = "degen=http://localhost:9101/metrics,imagine=http://localhost:9102/metrics"
+
 [tasks.fmt]
 description = "Check formatting (CI parity)"
 run = "cargo fmt --all --check"

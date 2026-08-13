@@ -18,7 +18,7 @@ Use a separate test bot token from @BotFather for local dev.
 | `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]                    |
 | `CLOUDFLARE_API_TOKEN`  | API token with Workers AI access, dash.cloudflare.com       |
 | `CLOUDFLARE_ACCOUNT_ID` | Account id from the Workers AI dashboard URL                |
-| `IMAGINE_DB_PATH`       | SQLite path (default `imagine.db`; `/data/imagine.db` in the container) |
+| `IMAGINE_DB_PATH`       | SQLite path (default `imagine.db` locally; `/data/imagine.db` in the container, set in docker-compose.yml) |
 | `TELEBOTS_METRICS_PORT` | Optional: metrics port (default `9102`)                                |
 
 [@BotFather]: https://t.me/BotFather

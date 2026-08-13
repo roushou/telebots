@@ -4,7 +4,6 @@
 
 # Per-bot env files, created from bots/*/.env.example on the VPS
 bots/*/.env
-monitor/.env
 
 # Persistent bot data (SQLite databases)
 data/
