@@ -10,7 +10,7 @@
 use std::io::Cursor;
 
 use anyhow::{Context, Result};
-use cloudflare_ai::CloudflareAiClient;
+use cloudflare_ai::{CloudflareAiClient, Model};
 use image::{DynamicImage, GenericImageView, ImageFormat, Rgb, RgbImage, imageops::FilterType};
 
 /// Longest edge of the compact copy stored in the record log.
@@ -92,11 +92,11 @@ impl Generator {
         )?))
     }
 
-    /// Generate an image from `prompt`.
-    pub async fn generate(&self, prompt: &str) -> Result<GeneratedImage> {
+    /// Generate an image from `prompt` using `model`.
+    pub async fn generate(&self, model: Model, prompt: &str) -> Result<GeneratedImage> {
         match self {
             Generator::Cloudflare(client) => {
-                let image = client.generate_image(prompt).await?;
+                let image = client.generate_image(model, prompt).await?;
                 GeneratedImage::new(image.bytes)
             }
         }

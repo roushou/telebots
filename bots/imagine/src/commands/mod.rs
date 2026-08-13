@@ -27,7 +27,7 @@ pub struct Ctx {
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "snake_case", description = "Imagine commands:")]
 pub enum Command {
-    #[command(description = "Generate an image: /imagine <prompt>")]
+    #[command(description = "Generate an image: /imagine [model] <prompt>")]
     Imagine(String),
 
     #[command(description = "Recent generations")]

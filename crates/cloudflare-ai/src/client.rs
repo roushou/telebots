@@ -1,14 +1,18 @@
 //! The Cloudflare Workers AI HTTP client: request plumbing and the REST
 //! call. The generated-image type lives in [`types`].
 
+use std::time::Instant;
+
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use reqwest::header::CONTENT_TYPE;
+use reqwest::{header::CONTENT_TYPE, multipart::Form};
 use serde_json::{Value, json};
 
-use crate::{error::Error, types::GeneratedImage};
+use crate::{
+    error::Error,
+    types::{GeneratedImage, Input, Model},
+};
 
 const API_BASE: &str = "https://api.cloudflare.com/client/v4";
-const FLUX_SCHNELL: &str = "@cf/black-forest-labs/flux-1-schnell";
 
 #[derive(Clone)]
 pub struct CloudflareAiClient {
@@ -33,19 +37,37 @@ impl CloudflareAiClient {
         })
     }
 
-    /// Generate an image from `prompt` using the default Flux model.
-    pub async fn generate_image(&self, prompt: &str) -> Result<GeneratedImage, Error> {
+    /// Generate an image from `prompt` using `model`.
+    ///
+    /// The request encoding is chosen by the model: JSON for the classic
+    /// text-to-image models, `multipart/form-data` for the FLUX.2 family.
+    pub async fn generate_image(
+        &self,
+        model: Model,
+        prompt: &str,
+    ) -> Result<GeneratedImage, Error> {
         let url = format!(
-            "{API_BASE}/accounts/{}/ai/run/{FLUX_SCHNELL}",
-            self.account_id
+            "{API_BASE}/accounts/{}/ai/run/{}",
+            self.account_id,
+            model.path()
         );
-        let resp = self
-            .http
-            .post(url)
-            .bearer_auth(&self.api_token)
-            .json(&json!({ "prompt": prompt }))
-            .send()
-            .await?;
+        let request = self.http.post(url).bearer_auth(&self.api_token);
+        let started = Instant::now();
+        tracing::debug!(model = %model, "sending image request");
+        let resp = match model.input() {
+            Input::Json => request.json(&json!({ "prompt": prompt })).send().await?,
+            Input::Multipart => {
+                request
+                    .multipart(Form::new().text("prompt", prompt.to_string()))
+                    .send()
+                    .await?
+            }
+        };
+        tracing::debug!(
+            status = resp.status().as_u16(),
+            elapsed = ?started.elapsed(),
+            "image request completed"
+        );
 
         let status = resp.status();
         let content_type = resp

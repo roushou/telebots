@@ -122,8 +122,20 @@ before writing deserializers; do not assume endpoint availability.
 - **CoinGecko**: `search/trending` (no key) — CMC's trending endpoint is
   paid, so `/trending` uses CoinGecko.
 - **Cloudflare Workers AI**: image generation via
-  `POST /client/v4/accounts/{id}/ai/run/@cf/black-forest-labs/flux-1-schnell`
-  (bearer token). Default responses are a JSON envelope
+  `POST /client/v4/accounts/{id}/ai/run/{model}` (bearer token). The model
+  is selected per request from `cloudflare_ai::Model` (default
+  `@cf/black-forest-labs/flux-1-schnell`); verified text-to-image paths:
+  `@cf/black-forest-labs/flux-1-schnell`,
+  `@cf/black-forest-labs/flux-2-dev`,
+  `@cf/black-forest-labs/flux-2-klein-4b`,
+  `@cf/black-forest-labs/flux-2-klein-9b`,
+  `@cf/bytedance/stable-diffusion-xl-lightning`,
+  `@cf/lykon/dreamshaper-8-lcm`,
+  `@cf/stabilityai/stable-diffusion-xl-base-1.0`.
+  The FLUX.2 models need a `multipart/form-data` body (`prompt` field); the
+  others accept a JSON `{"prompt": "..."}` body — `cloudflare_ai::Model`
+  knows which via `Model::input`.
+  Default responses are a JSON envelope
   `{"result":{"image":"<base64>"},"success":true,...}` — check `success`,
   base64-decode `result.image` (may carry a `data:image/<mime>;base64,`
   prefix). Raw image bytes only come back if the request sends

@@ -31,4 +31,8 @@ pub enum Error {
     /// `result.image` was not valid base64.
     #[error("result.image was not valid base64")]
     InvalidBase64(#[from] base64::DecodeError),
+
+    /// A model name was not recognized (see [`crate::Model::from_str`]).
+    #[error("unknown image model: {0}")]
+    InvalidModel(String),
 }

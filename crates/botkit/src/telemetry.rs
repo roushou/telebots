@@ -14,7 +14,7 @@ impl Telemetry {
     /// `"<service>=info,teloxide=warn,reqwest=warn"`. `TELEBOTS_LOG_JSON=1`
     /// switches to JSON output.
     pub fn init(service: &'static str) {
-        let fallback = format!("{service}=info,teloxide=warn,reqwest=warn");
+        let fallback = format!("{service}=info,botkit=info,panic=error,teloxide=warn,reqwest=warn");
         let filter =
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&fallback));
 

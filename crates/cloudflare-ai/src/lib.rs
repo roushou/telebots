@@ -9,4 +9,4 @@ mod types;
 
 pub use client::CloudflareAiClient;
 pub use error::Error;
-pub use types::GeneratedImage;
+pub use types::{GeneratedImage, Input, Model};

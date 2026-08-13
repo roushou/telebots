@@ -198,6 +198,7 @@ impl Supervisor {
                 tracing::error!("background job returned a Background reply");
             }
             Err(e) => {
+                tracing::warn!(chat_id = msg.chat.id.0, "background job failed: {e:#}");
                 let _ = bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await;
             }
         }
