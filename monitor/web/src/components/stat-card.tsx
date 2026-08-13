@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+
 import { cn } from "../lib/utils";
 import { Card, CardContent } from "./ui/card";
 
@@ -20,14 +21,12 @@ export function StatCard({
         <div
           className={cn(
             "mt-1 text-2xl font-semibold tabular-nums tracking-tight",
-            tone === "destructive" && "text-destructive"
+            tone === "destructive" && "text-destructive",
           )}
         >
           {value}
         </div>
-        {hint ? (
-          <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
-        ) : null}
+        {hint ? <div className="mt-1 text-xs text-muted-foreground">{hint}</div> : null}
       </CardContent>
     </Card>
   );

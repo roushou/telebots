@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+
 import type { BotSnapshot } from "../lib/api";
 import { fmtAgo, fmtUptime } from "../lib/format";
 import type { HealthSegment } from "../lib/history";
@@ -16,13 +17,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function BotCard({
-  bot,
-  segments,
-}: {
-  bot: BotSnapshot;
-  segments: HealthSegment[];
-}) {
+export function BotCard({ bot, segments }: { bot: BotSnapshot; segments: HealthSegment[] }) {
   const { status, error } = bot;
   const ok = status !== null && error === null;
 
@@ -40,10 +35,7 @@ export function BotCard({
             <div className="space-y-1 text-sm">
               <Row label="version" value={status.version} />
               <Row label="uptime" value={fmtUptime(status.uptime_secs)} />
-              <Row
-                label="last update"
-                value={fmtAgo(status.last_update_ago_secs)}
-              />
+              <Row label="last update" value={fmtAgo(status.last_update_ago_secs)} />
               <Row
                 label="jobs"
                 value={`${status.jobs_active} active · ${status.jobs_failed_total} failed`}

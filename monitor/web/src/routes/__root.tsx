@@ -1,13 +1,10 @@
-import {
-  HeadContent,
-  Outlet,
-  Scripts,
-  createRootRoute,
-} from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
+
 import { TooltipProvider } from "../components/ui/tooltip";
 import { ThemeProvider, useTheme } from "../lib/theme";
+
 import appCss from "../index.css?url";
 
 /// Set the theme class before hydration so the first paint never flashes the

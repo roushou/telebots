@@ -61,6 +61,14 @@ jobs:
         working-directory: monitor/web
         run: bun install --frozen-lockfile
 
+      - name: Lint
+        working-directory: monitor/web
+        run: bun run lint
+
+      - name: Format check
+        working-directory: monitor/web
+        run: bun run fmt:check
+
       - name: Build
         working-directory: monitor/web
         run: bun run build

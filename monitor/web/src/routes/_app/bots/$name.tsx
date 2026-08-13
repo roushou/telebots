@@ -1,16 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { AvailabilityBand, JobsChart, PanicsChart } from "../../../components/charts";
 import { StatCard } from "../../../components/stat-card";
 import { StatusBadge } from "../../../components/status-badge";
 import { Button } from "../../../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { fetchBotDetail, type BotDetail } from "../../../lib/api";
 import { fmtDuration, fmtStamp, fmtUptime } from "../../../lib/format";
 
@@ -94,7 +90,7 @@ function BotDetailPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {status
             ? `v${status.version} · telegram ${status.telegram === "ok" ? "reachable" : "unreachable"}`
-            : latest.error ?? "no data yet"}
+            : (latest.error ?? "no data yet")}
         </p>
       </div>
 
@@ -117,9 +113,7 @@ function BotDetailPage() {
             </Button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">
-          history stored at 30s intervals
-        </span>
+        <span className="text-xs text-muted-foreground">history stored at 30s intervals</span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -176,9 +170,7 @@ function BotDetailPage() {
           </CardHeader>
           <CardContent>
             {data.restarts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No restarts detected in this window.
-              </p>
+              <p className="text-sm text-muted-foreground">No restarts detected in this window.</p>
             ) : (
               <ul className="space-y-2">
                 {data.restarts.map((r) => (
@@ -198,9 +190,7 @@ function BotDetailPage() {
           </CardHeader>
           <CardContent>
             {data.errors.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No errors in this window.
-              </p>
+              <p className="text-sm text-muted-foreground">No errors in this window.</p>
             ) : (
               <ul className="space-y-2">
                 {data.errors.map((e) => (

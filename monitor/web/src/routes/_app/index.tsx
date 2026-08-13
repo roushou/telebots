@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { LayoutGrid, Table2 } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { BotCard } from "../../components/bot-card";
 import { BotTable } from "../../components/bot-table";
 import { HealthStrip } from "../../components/health-strip";
@@ -42,8 +43,7 @@ function OverviewPage() {
     };
   }, []);
 
-  const segmentsFor = (bot: string) =>
-    data.health.find((h) => h.bot === bot)?.segments ?? [];
+  const segmentsFor = (bot: string) => data.health.find((h) => h.bot === bot)?.segments ?? [];
 
   const up = data.bots.filter((b) => b.status !== null && b.error === null).length;
   const down = data.bots.length - up;
@@ -101,8 +101,8 @@ function OverviewPage() {
 
       {data.bots.length === 0 ? (
         <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No bots to show. Configure <code className="font-mono">MONITOR_BOTS</code>{" "}
-          and the monitor will start recording snapshots.
+          No bots to show. Configure <code className="font-mono">MONITOR_BOTS</code> and the monitor
+          will start recording snapshots.
         </div>
       ) : view === "grid" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

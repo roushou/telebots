@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Activity, Bot, LayoutDashboard } from "lucide-react";
-import { cn } from "../lib/utils";
+
 import type { BotSnapshot } from "../lib/api";
+import { cn } from "../lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 function isOk(bot: BotSnapshot): boolean {
@@ -10,10 +11,7 @@ function isOk(bot: BotSnapshot): boolean {
 
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
-    <Link
-      to="/"
-      className="mb-2 flex h-10 items-center gap-2.5 rounded-md px-2"
-    >
+    <Link to="/" className="mb-2 flex h-10 items-center gap-2.5 rounded-md px-2">
       <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
         <Activity className="size-4" />
       </span>
@@ -69,7 +67,7 @@ export function AppSidebar({
               <Bot
                 className={cn(
                   "size-4 shrink-0",
-                  collapsed && (ok ? "text-emerald-500" : "text-destructive")
+                  collapsed && (ok ? "text-emerald-500" : "text-destructive"),
                 )}
               />
               {!collapsed && <span className="flex-1 truncate">{bot.bot}</span>}
@@ -77,7 +75,7 @@ export function AppSidebar({
                 <span
                   className={cn(
                     "size-2 shrink-0 rounded-full",
-                    ok ? "bg-emerald-500" : "bg-destructive"
+                    ok ? "bg-emerald-500" : "bg-destructive",
                   )}
                   aria-hidden="true"
                 />

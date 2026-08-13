@@ -1,11 +1,12 @@
-import { useMemo } from "react";
-import { Chart } from "@tanstack/charts/react";
 import { areaY, defineChart, lineY, rect } from "@tanstack/charts";
+import { Chart } from "@tanstack/charts/react";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { scaleUtc } from "d3-scale";
 import { tooltip } from "@tanstack/charts/tooltip";
-import type { HealthSegment } from "../lib/history";
+import { scaleUtc } from "d3-scale";
+import { useMemo } from "react";
+
 import { fmtClock } from "../lib/format";
+import type { HealthSegment } from "../lib/history";
 
 type SegRow = { x1: Date; x2: Date };
 

@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { AppSidebar } from "../../components/app-sidebar";
 import { CommandPalette } from "../../components/command-palette";
 import { ThemeToggle } from "../../components/theme-toggle";
@@ -48,7 +49,7 @@ function Layout() {
         // keep the previous state; the monitor may be restarting
       }
     }
-    refresh();
+    void refresh();
     const id = setInterval(refresh, 15_000);
     return () => {
       cancelled = true;
@@ -62,7 +63,7 @@ function Layout() {
       <aside
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-muted/30 transition-[width] md:flex",
-          collapsed ? "w-16" : "w-60"
+          collapsed ? "w-16" : "w-60",
         )}
       >
         <AppSidebar bots={bots} collapsed={collapsed} />
@@ -102,9 +103,7 @@ function Layout() {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">
-              {collapsed ? "Expand" : "Collapse"}
-            </TooltipContent>
+            <TooltipContent side="right">{collapsed ? "Expand" : "Collapse"}</TooltipContent>
           </Tooltip>
 
           <div className="flex-1" />
@@ -135,11 +134,7 @@ function Layout() {
         </main>
       </div>
 
-      <CommandPalette
-        bots={bots}
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-      />
+      <CommandPalette bots={bots} open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }

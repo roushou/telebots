@@ -1,10 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import {
-  type HealthSegment,
-  buildBotDetail,
-  hoursToLimit,
-  toSegments,
-} from "./history";
+
+import { type HealthSegment, buildBotDetail, hoursToLimit, toSegments } from "./history";
 
 export type BotStatus = {
   service: string;
@@ -50,24 +46,22 @@ function apiBase(): string {
 async function apiBots(base: string): Promise<BotSnapshot[]> {
   const resp = await fetch(`${base}/api/bots`);
   if (!resp.ok) throw new Error(`monitor api responded ${resp.status}`);
-  return (await resp.json()) as BotSnapshot[];
+  const data: unknown = await resp.json();
+  return data as BotSnapshot[];
 }
 
-async function apiHistory(
-  base: string,
-  name: string,
-  limit: number
-): Promise<BotSnapshot[]> {
+async function apiHistory(base: string, name: string, limit: number): Promise<BotSnapshot[]> {
   const resp = await fetch(`${base}/api/bots/${name}/history?limit=${limit}`);
   if (!resp.ok) throw new Error(`monitor api responded ${resp.status}`);
-  return (await resp.json()) as BotSnapshot[];
+  const data: unknown = await resp.json();
+  return data as BotSnapshot[];
 }
 
 /// Newest snapshot per bot.
 export const fetchBots = createServerFn({ method: "GET" }).handler(
   async (): Promise<BotSnapshot[]> => {
     return apiBots(apiBase());
-  }
+  },
 );
 
 /// Overview board: latest snapshots plus a 24h availability strip per bot.
@@ -78,13 +72,11 @@ export const fetchOverview = createServerFn({ method: "GET" }).handler(
     const health = await Promise.all(
       bots.map(async (bot) => ({
         bot: bot.bot,
-        segments: toSegments(
-          await apiHistory(base, bot.bot, hoursToLimit(OVERVIEW_WINDOW_HOURS))
-        ),
-      }))
+        segments: toSegments(await apiHistory(base, bot.bot, hoursToLimit(OVERVIEW_WINDOW_HOURS))),
+      })),
     );
     return { bots, health };
-  }
+  },
 );
 
 /// Everything the per-bot detail view renders, reduced server-side.

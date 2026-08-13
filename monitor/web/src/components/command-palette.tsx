@@ -1,9 +1,10 @@
-import { useEffect } from "react";
-import { Command } from "cmdk";
 import { useNavigate } from "@tanstack/react-router";
+import { Command } from "cmdk";
 import { Bot, LayoutDashboard, Moon, Sun } from "lucide-react";
-import { useTheme } from "../lib/theme";
+import { useEffect } from "react";
+
 import type { BotSnapshot } from "../lib/api";
+import { useTheme } from "../lib/theme";
 
 const overlayClass =
   "fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
@@ -36,9 +37,9 @@ export function CommandPalette({
   const go = (to: "/" | "/bots/$name", name?: string) => {
     onOpenChange(false);
     if (to === "/bots/$name" && name) {
-      navigate({ to, params: { name } });
+      void navigate({ to, params: { name } });
     } else {
-      navigate({ to: "/" });
+      void navigate({ to: "/" });
     }
   };
 
@@ -96,11 +97,7 @@ export function CommandPalette({
             onSelect={() => toggleTheme()}
             className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
           >
-            {theme === "dark" ? (
-              <Sun className="size-4" />
-            ) : (
-              <Moon className="size-4" />
-            )}
+            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             Toggle theme
           </Command.Item>
         </Command.Group>

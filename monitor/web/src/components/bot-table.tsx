@@ -1,20 +1,14 @@
-import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import type { BotSnapshot } from "../lib/api";
 import { fmtAgo, fmtUptime } from "../lib/format";
 import type { HealthSegment } from "../lib/history";
 import { AvailabilityBand } from "./charts";
 import { StatusBadge } from "./status-badge";
 import { Input } from "./ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 
 export function BotTable({
   bots,
@@ -64,20 +58,14 @@ export function BotTable({
             return (
               <TableRow key={bot.bot}>
                 <TableCell className="font-medium">
-                  <Link
-                    to="/bots/$name"
-                    params={{ name: bot.bot }}
-                    className="hover:underline"
-                  >
+                  <Link to="/bots/$name" params={{ name: bot.bot }} className="hover:underline">
                     {bot.bot}
                   </Link>
                 </TableCell>
                 <TableCell>
                   <StatusBadge ok={ok} />
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {status?.version ?? "—"}
-                </TableCell>
+                <TableCell className="text-muted-foreground">{status?.version ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">
                   {status ? fmtUptime(status.uptime_secs) : "—"}
                 </TableCell>
@@ -85,18 +73,11 @@ export function BotTable({
                   {status ? fmtAgo(status.last_update_ago_secs) : "—"}
                 </TableCell>
                 <TableCell className="tabular-nums">
-                  {status
-                    ? `${status.jobs_active} / ${status.jobs_failed_total}`
-                    : "—"}
+                  {status ? `${status.jobs_active} / ${status.jobs_failed_total}` : "—"}
                 </TableCell>
-                <TableCell className="tabular-nums">
-                  {status?.panics_total ?? "—"}
-                </TableCell>
+                <TableCell className="tabular-nums">{status?.panics_total ?? "—"}</TableCell>
                 <TableCell>
-                  <AvailabilityBand
-                    segments={byBot.get(bot.bot) ?? []}
-                    height={20}
-                  />
+                  <AvailabilityBand segments={byBot.get(bot.bot) ?? []} height={20} />
                 </TableCell>
               </TableRow>
             );

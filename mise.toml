@@ -16,13 +16,21 @@ bun = "1"
 [env]
 MONITOR_BOTS = "degen=http://localhost:9101/metrics,imagine=http://localhost:9102/metrics"
 
-[tasks.fmt]
-description = "Check formatting (CI parity)"
+[tasks.rust-fmt]
+description = "Check Rust formatting"
 run = "cargo fmt --all --check"
 
-[tasks.lint]
-description = "Clippy with warnings denied (CI parity)"
+[tasks.rust-lint]
+description = "Clippy with warnings denied"
 run = "cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks.fmt]
+description = "Check formatting (Rust + dashboard)"
+depends = ["rust-fmt", "web-fmt"]
+
+[tasks.lint]
+description = "Lint (Rust + dashboard)"
+depends = ["rust-lint", "web-lint"]
 
 [tasks.test]
 description = "Run the test suite"
@@ -32,13 +40,13 @@ run = "cargo test --workspace"
 description = "Build the whole workspace"
 run = "cargo build --workspace"
 
-# Sequential on purpose — cargo steps share the target dir, so running them
-# in parallel would just thrash on the build lock. Order matches CI.
+# fmt + lint run first (in parallel across both languages); the cargo steps
+# then run sequentially because they share the target dir, so parallel
+# execution would just thrash on the build lock.
 [tasks.check]
-description = "fmt + clippy + test + build — what CI runs"
+description = "fmt + lint + test + build — what CI runs"
+depends = ["fmt", "lint"]
 run = [
-    "cargo fmt --all --check",
-    "cargo clippy --workspace --all-targets -- -D warnings",
     "cargo test --workspace",
     "cargo build --workspace",
 ]
@@ -59,6 +67,16 @@ run = "bun run dev"
 
 [tasks.web.env]
 MONITOR_API_URL = "http://127.0.0.1:9110"
+
+[tasks.web-lint]
+description = "Lint the dashboard"
+dir = "monitor/web"
+run = "bun run lint"
+
+[tasks.web-fmt]
+description = "Check dashboard formatting (oxfmt --check)"
+dir = "monitor/web"
+run = "bun run fmt:check"
 
 [tasks.logs]
 description = "Follow a container's logs"

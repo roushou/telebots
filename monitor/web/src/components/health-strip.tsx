@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+
 import type { BotSnapshot } from "../lib/api";
 import type { HealthSegment } from "../lib/history";
 import { cn } from "../lib/utils";
@@ -34,7 +35,7 @@ export function HealthStrip({
                 <span
                   className={cn(
                     "size-2 shrink-0 rounded-full",
-                    ok ? "bg-emerald-500" : "bg-destructive"
+                    ok ? "bg-emerald-500" : "bg-destructive",
                   )}
                   aria-hidden="true"
                 />

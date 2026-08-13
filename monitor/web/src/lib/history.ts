@@ -14,7 +14,7 @@ export function hoursToLimit(hours: number): number {
 /// up/down spans. `start`/`end` are epoch seconds; a span ends one poll
 /// interval after its last snapshot.
 export function toSegments(history: BotSnapshot[]): HealthSegment[] {
-  const sorted = [...history].sort((a, b) => a.ts - b.ts);
+  const sorted = history.toSorted((a, b) => a.ts - b.ts);
   const segments: HealthSegment[] = [];
   for (const snap of sorted) {
     const up = snap.status !== null && snap.error === null;
@@ -42,9 +42,9 @@ function downsample<T>(rows: T[], max: number): T[] {
 export function buildBotDetail(
   hours: number,
   history: BotSnapshot[],
-  latest: BotSnapshot
+  latest: BotSnapshot,
 ): BotDetail {
-  const sorted = [...history].sort((a, b) => a.ts - b.ts);
+  const sorted = history.toSorted((a, b) => a.ts - b.ts);
 
   const jobs = downsample(
     sorted.map((s) => ({
@@ -52,12 +52,12 @@ export function buildBotDetail(
       active: s.status?.jobs_active ?? null,
       failed: s.status?.jobs_failed_total ?? null,
     })),
-    400
+    400,
   );
 
   const panics = downsample(
     sorted.map((s) => ({ ts: s.ts, value: s.status?.panics_total ?? null })),
-    400
+    400,
   );
 
   const restarts: { ts: number }[] = [];
