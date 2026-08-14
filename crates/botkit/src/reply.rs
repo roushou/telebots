@@ -10,6 +10,8 @@ use std::{future::Future, pin::Pin, time::Duration};
 use anyhow::Result;
 use telebots_core::Block;
 
+use crate::markup::Markup;
+
 /// Telegram's photo caption length limit.
 const MAX_CAPTION_LEN: usize = 1024;
 
@@ -20,13 +22,19 @@ pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 /// point — commands never call `send_message`.
 #[non_exhaustive]
 pub enum Reply {
-    /// Send this block as a text message (capped at 4096).
-    Text(Block),
+    /// Send this block as a text message, optionally with an inline
+    /// keyboard (capped at 4096).
+    Text {
+        block: Block,
+        markup: Option<Markup>,
+    },
 
-    /// Deliver a photo with an optional caption (capped at 1024).
+    /// Deliver a photo with an optional caption and keyboard (capped at
+    /// 1024).
     Photo {
         bytes: Vec<u8>,
         caption: Option<String>,
+        markup: Option<Markup>,
     },
 
     /// Edit the acknowledgement placeholder in place (background jobs
@@ -40,6 +48,39 @@ pub enum Reply {
 }
 
 impl Reply {
+    /// A text reply.
+    pub fn text(block: Block) -> Self {
+        Self::Text {
+            block,
+            markup: None,
+        }
+    }
+
+    /// A photo reply.
+    pub fn photo(bytes: Vec<u8>, caption: Option<String>) -> Self {
+        Self::Photo {
+            bytes,
+            caption,
+            markup: None,
+        }
+    }
+
+    /// Attach an inline keyboard to a text or photo reply.
+    pub fn with_markup(self, markup: Markup) -> Self {
+        match self {
+            Self::Text { block, .. } => Self::Text {
+                block,
+                markup: Some(markup),
+            },
+            Self::Photo { bytes, caption, .. } => Self::Photo {
+                bytes,
+                caption,
+                markup: Some(markup),
+            },
+            other => other,
+        }
+    }
+
     /// Cap a caption at Telegram's limit.
     pub(crate) fn cap_caption(caption: String) -> String {
         if caption.chars().count() > MAX_CAPTION_LEN {
@@ -90,5 +131,20 @@ mod tests {
 
         let short = "ok".to_string();
         assert_eq!(Reply::cap_caption(short), "ok");
+    }
+
+    #[test]
+    fn text_can_carry_markup() {
+        let mut block = Block::new();
+        block.line("hi");
+        let markup = Markup::new().row([crate::markup::Button::callback("Go", "go")]);
+        let reply = Reply::text(block).with_markup(markup);
+        match reply {
+            Reply::Text {
+                markup: Some(markup),
+                ..
+            } => assert!(!markup.is_empty()),
+            _ => panic!("expected text reply with markup"),
+        }
     }
 }

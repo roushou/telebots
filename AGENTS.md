@@ -69,7 +69,7 @@ goes in `crates/`.
   `botkit::Command` (its `Ctx` + `reply`); botkit's dispatcher is the single
   place that sends. A bot composes update kinds into a `botkit::Router`
   (`.command::<Cmd>()`, `.guarded_command::<Cmd, G>(guard)`,
-  `.inline_query(handler)`) and hands it to `Bot::run`. Cross-cutting
+  `.inline_query(handler)`, `.callback(handler)`) and hands it to `Bot::run`. Cross-cutting
   checks (rate limits, permissions) are `botkit::Guard`s on the router, not
   command code. Imagine's `reply` returns a `botkit::Reply`
   (`Text(Block)` | `Background` intent) — no command calls `send_message`;

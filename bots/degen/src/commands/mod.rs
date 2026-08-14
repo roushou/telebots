@@ -82,6 +82,6 @@ impl botkit::Command for Command {
             Command::Info(raw) => InfoArgs::parse(raw)?.reply(ctx).await,
             Command::Help => Help.reply().await,
         }?;
-        Ok(botkit::Reply::Text(block))
+        Ok(botkit::Reply::text(block))
     }
 }

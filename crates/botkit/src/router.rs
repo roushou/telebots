@@ -6,14 +6,17 @@ use teloxide::{
     dispatching::{UpdateFilterExt as _, UpdateHandler},
     prelude::Requester,
     requests::ResponseResult,
-    types::{InlineQuery, Me, Message, Update},
+    types::{CallbackQuery, ChatId, InlineQuery, Me, Message, MessageId, Update},
 };
 
 use crate::{
+    callback::{CallbackHandler, CallbackRequest},
     command::{Command, MenuEntry},
-    dispatch::{Supervisor, dispatch},
+    dispatch::{MAX_MESSAGE_LEN, Supervisor, dispatch},
     guard::{Guard, NoGuard},
     inline::{InlineHandler, InlineRequest},
+    messenger::Messenger,
+    reply::Reply,
     request::Request,
 };
 
@@ -69,6 +72,16 @@ impl<Ctx: Clone + Send + Sync + 'static> Router<Ctx> {
         self
     }
 
+    /// Handle inline-keyboard button taps.
+    pub fn callback<H>(mut self, handler: H) -> Self
+    where
+        H: CallbackHandler<Ctx = Ctx>,
+    {
+        self.branches
+            .push(Box::new(move || callback_branch(handler)));
+        self
+    }
+
     pub(crate) fn into_parts(self) -> (Ctx, Vec<MenuEntry>, Vec<Branch>) {
         (self.ctx, self.menu, self.branches)
     }
@@ -121,6 +134,63 @@ where
             Ok(())
         })
     })
+}
+
+/// The callback branch: handle inline-keyboard button taps.
+fn callback_branch<H>(handler: H) -> UpdateHandler<RequestError>
+where
+    H: CallbackHandler,
+{
+    Update::filter_callback_query().endpoint(
+        move |query: CallbackQuery, bot: Api, ctx: H::Ctx, supervisor: Supervisor| {
+            let handler = handler.clone();
+            Box::pin(async move { handle_callback(query, bot, ctx, supervisor, handler).await })
+        },
+    )
+}
+
+/// The callback endpoint: run the handler, edit or send its reply, and
+/// always acknowledge the tap.
+async fn handle_callback<H>(
+    query: CallbackQuery,
+    bot: Api,
+    ctx: H::Ctx,
+    supervisor: Supervisor,
+    handler: H,
+) -> ResponseResult<()>
+where
+    H: CallbackHandler,
+{
+    let req = CallbackRequest::from_query(&query);
+    let (Some(chat_id), Some(message_id)) = (req.chat_id, req.message_id) else {
+        // Button on an inaccessible/inline message; just acknowledge.
+        let _ = Messenger::answer_callback(&bot, query.id).await;
+        return Ok(());
+    };
+    let chat = ChatId(chat_id);
+    let msg = MessageId(message_id);
+
+    match handler.handle(&ctx, &req).await {
+        Ok(Reply::Edit(block)) => {
+            if let Err(e) =
+                Messenger::edit_text(&bot, chat, msg, block.truncate(MAX_MESSAGE_LEN).build()).await
+            {
+                tracing::warn!("failed to edit callback message: {e}");
+            }
+        }
+        Ok(reply) => {
+            dispatch(&bot, chat, msg, req.user_id, &supervisor, async {
+                Ok(reply)
+            })
+            .await?;
+        }
+        Err(e) => {
+            tracing::warn!("callback failed: {e:#}");
+            let _ = Messenger::send_text(&bot, chat, format!("⚠️ {e:#}"), None).await;
+        }
+    }
+    let _ = Messenger::answer_callback(&bot, query.id).await;
+    Ok(())
 }
 
 /// The command endpoint: run the guard, then route either its reply or the

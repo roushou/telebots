@@ -24,7 +24,7 @@ use crate::{
 };
 
 /// Telegram's text message length limit.
-const MAX_MESSAGE_LEN: usize = 4096;
+pub(crate) const MAX_MESSAGE_LEN: usize = 4096;
 
 /// Tracks in-flight background jobs so shutdown can drain them, and carries
 /// the runtime metrics. Injected as a single dependency into handlers.
@@ -132,18 +132,25 @@ impl Supervisor {
                 }
                 return;
             }
-            Ok(Reply::Text(block)) => {
+            Ok(Reply::Text { block, markup }) => {
                 if let Err(e) = messenger
-                    .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build())
+                    .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build(), markup)
                     .await
                 {
                     tracing::warn!("failed to send job reply: {e}");
                 }
             }
-            Ok(Reply::Photo { bytes, caption }) => {
-                if let Err(e) = messenger.send_photo(chat, reply_to, bytes, caption).await {
+            Ok(Reply::Photo {
+                bytes,
+                caption,
+                markup,
+            }) => {
+                if let Err(e) = messenger
+                    .send_photo(chat, reply_to, bytes, caption, markup)
+                    .await
+                {
                     tracing::warn!("failed to deliver photo: {e}");
-                    let _ = messenger.send_text(chat, format!("⚠️ {e:#}")).await;
+                    let _ = messenger.send_text(chat, format!("⚠️ {e:#}"), None).await;
                 }
             }
             Ok(Reply::Background { .. }) => {
@@ -151,7 +158,7 @@ impl Supervisor {
             }
             Err(e) => {
                 tracing::warn!(chat_id = chat.0, "background job failed: {e:#}");
-                let _ = messenger.send_text(chat, format!("⚠️ {e:#}")).await;
+                let _ = messenger.send_text(chat, format!("⚠️ {e:#}"), None).await;
             }
         }
         if let Err(e) = messenger.delete(chat, placeholder).await {
@@ -177,22 +184,28 @@ where
 {
     supervisor.metrics.note_command();
     match reply.await {
-        Ok(Reply::Text(block)) => {
+        Ok(Reply::Text { block, markup }) => {
             messenger
-                .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build())
+                .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build(), markup)
                 .await?;
         }
-        Ok(Reply::Photo { bytes, caption }) => {
-            messenger.send_photo(chat, reply_to, bytes, caption).await?;
+        Ok(Reply::Photo {
+            bytes,
+            caption,
+            markup,
+        }) => {
+            messenger
+                .send_photo(chat, reply_to, bytes, caption, markup)
+                .await?;
         }
         Ok(Reply::Edit(block)) => {
             // Nothing to edit in the direct path; fall back to a message.
             messenger
-                .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build())
+                .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build(), None)
                 .await?;
         }
         Ok(Reply::Background { placeholder, job }) => {
-            let placeholder_id = messenger.send_text(chat, placeholder).await?;
+            let placeholder_id = messenger.send_text(chat, placeholder, None).await?;
             let ctx = JobCtx {
                 chat_id: chat.0,
                 user_id,
@@ -202,7 +215,7 @@ where
                 .await;
         }
         Err(e) => {
-            messenger.send_text(chat, format!("⚠️ {e:#}")).await?;
+            messenger.send_text(chat, format!("⚠️ {e:#}"), None).await?;
         }
     }
     Ok(())
@@ -234,11 +247,17 @@ mod tests {
         SendPhoto(Option<String>),
         EditText(String),
         Delete,
+        Answer,
     }
 
     #[crate::async_trait]
     impl Messenger for Mock {
-        async fn send_text(&self, _chat: ChatId, text: String) -> ResponseResult<MessageId> {
+        async fn send_text(
+            &self,
+            _chat: ChatId,
+            text: String,
+            _markup: Option<crate::markup::Markup>,
+        ) -> ResponseResult<MessageId> {
             self.calls.lock().await.push(Call::SendText(text));
             Ok(MessageId(1))
         }
@@ -249,6 +268,7 @@ mod tests {
             _reply_to: MessageId,
             _bytes: Vec<u8>,
             caption: Option<String>,
+            _markup: Option<crate::markup::Markup>,
         ) -> ResponseResult<MessageId> {
             self.calls.lock().await.push(Call::SendPhoto(caption));
             Ok(MessageId(2))
@@ -268,6 +288,14 @@ mod tests {
             self.calls.lock().await.push(Call::Delete);
             Ok(())
         }
+
+        async fn answer_callback(
+            &self,
+            _query_id: teloxide::types::CallbackQueryId,
+        ) -> ResponseResult<()> {
+            self.calls.lock().await.push(Call::Answer);
+            Ok(())
+        }
     }
 
     async fn calls(mock: &Mock) -> Vec<Call> {
@@ -278,7 +306,7 @@ mod tests {
     async fn dispatch_sends_text() {
         let messenger = Mock::default();
         let supervisor = Supervisor::new(Metrics::new("test", "0.1.0"));
-        let reply = async { Ok(Reply::Text(block("hello"))) };
+        let reply = async { Ok(Reply::text(block("hello"))) };
 
         dispatch(
             &messenger,
@@ -327,7 +355,7 @@ mod tests {
             Ok(Reply::Background {
                 placeholder: "working…".into(),
                 job: Job::new(Duration::from_secs(1), |_ctx| {
-                    Box::pin(async { Ok(Reply::Text(block("done"))) })
+                    Box::pin(async { Ok(Reply::text(block("done"))) })
                 }),
             })
         };
@@ -400,7 +428,7 @@ mod tests {
                 }
                 let _guard = Guard(flag);
                 std::future::pending::<()>().await;
-                Ok(Reply::Text(Block::new()))
+                Ok(Reply::text(Block::new()))
             })
         });
 

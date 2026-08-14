@@ -108,10 +108,10 @@ impl ImagineArgs {
                     if let Err(e) = ctx.storage.append(record).await {
                         tracing::warn!("failed to record history: {e:#}");
                     }
-                    Ok(Reply::Photo {
-                        bytes: image.bytes,
-                        caption: Some(format!("🎨 {prompt} · {model}")),
-                    })
+                    Ok(Reply::photo(
+                        image.bytes,
+                        Some(format!("🎨 {prompt} · {model}")),
+                    ))
                 })
             }),
         })

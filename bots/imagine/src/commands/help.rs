@@ -20,6 +20,6 @@ impl Help {
         for model in Model::ALL {
             b.row([model.aliases().join(", "), model.description().to_string()]);
         }
-        Ok(Reply::Text(b))
+        Ok(Reply::text(b))
     }
 }

@@ -35,7 +35,7 @@
 //!         let Cmd::Echo(text) = self else { unreachable!() };
 //!         let mut block = telebots_core::Block::new();
 //!         block.line(format!("You said: {text}"));
-//!         Ok(botkit::Reply::Text(block))
+//!         Ok(botkit::Reply::text(block))
 //!     }
 //! }
 //! ```
@@ -61,6 +61,8 @@
 //!   [`Guard`] that may short-circuit (rate limits, permissions, ...).
 //! - `.inline_query(handler)` — `@botname <query>` inline queries, answered
 //!   by an [`InlineHandler`] returning [`InlineAnswer`].
+//! - `.callback(handler)` — inline-keyboard button taps, handled by a
+//!   [`CallbackHandler`] that can edit the message or send a new one.
 //!
 //! # Concepts
 //!
@@ -70,10 +72,12 @@
 //! - [`Command`] — the behavior: the bot's context type and one `reply`
 //!   method. Commands never call `send_message`.
 //! - [`Reply`] — the explicit outcome a command produces: a text block, a
-//!   photo, an in-place edit, or a supervised background [`Job`].
+//!   photo, an in-place edit, or a supervised background [`Job`]. Text and
+//!   photo replies can carry an inline [`Markup`] of [`Button`]s.
 //! - [`Request`] — the teloxide-free slice of the update a command sees
 //!   (chat, user, and reply context).
 //! - [`Guard`] — a pre-command check that can short-circuit with a reply.
+//! - [`CallbackHandler`] — the behavior for inline-keyboard button taps.
 //! - [`Router`] — the set of update handlers a bot serves.
 //! - [`Bot`] — the runner: poller, dispatcher, metrics server, heartbeat,
 //!   and shutdown drain, wired from the router.
@@ -92,6 +96,7 @@
 //! authors them. botkit's own startup failures are the typed [`Error`].
 
 mod bot;
+mod callback;
 mod command;
 mod config;
 mod dispatch;
@@ -99,6 +104,7 @@ mod error;
 mod guard;
 mod health;
 mod inline;
+mod markup;
 mod messenger;
 mod metrics;
 mod reply;
@@ -109,11 +115,13 @@ mod telemetry;
 pub use async_trait::async_trait;
 pub use bot::{Bot, BotBuilder};
 pub use botkit_derive::CommandSpec;
+pub use callback::{CallbackHandler, CallbackRequest};
 pub use command::{Command, CommandSpec, MenuEntry};
 pub use config::Secret;
 pub use error::Error;
 pub use guard::{Guard, NoGuard};
 pub use inline::{InlineAnswer, InlineHandler, InlineRequest, InlineResult};
+pub use markup::{Button, Markup};
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{ChatKind, Request};
 pub use router::Router;

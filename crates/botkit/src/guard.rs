@@ -59,7 +59,7 @@ mod tests {
     #[crate::async_trait]
     impl<C: Send + Sync + 'static, Ctx: Send + Sync + 'static> Guard<C, Ctx> for Block {
         async fn check(&self, _ctx: &Ctx, _req: &Request, _cmd: &C) -> Result<Option<Reply>> {
-            Ok(Some(Reply::Text(telebots_core::Block::new())))
+            Ok(Some(Reply::text(telebots_core::Block::new())))
         }
     }
 

@@ -27,7 +27,7 @@ impl History {
                 b.line(format!("{id}. {prompt}"));
             }
         }
-        Ok(Reply::Text(b))
+        Ok(Reply::text(b))
     }
 }
 
@@ -49,7 +49,7 @@ mod tests {
     async fn empty_history_has_hint() -> anyhow::Result<()> {
         let ctx = ctx().await?;
         let outcome = History.reply(&ctx, 1).await?;
-        let Reply::Text(block) = outcome else {
+        let Reply::Text { block, .. } = outcome else {
             anyhow::bail!("expected text reply");
         };
         assert_eq!(block.build(), "No images yet — try /imagine <prompt>");
@@ -73,7 +73,7 @@ mod tests {
                 .await?;
         }
         let outcome = History.reply(&ctx, 1).await?;
-        let Reply::Text(block) = outcome else {
+        let Reply::Text { block, .. } = outcome else {
             anyhow::bail!("expected text reply");
         };
         let text = block.build();

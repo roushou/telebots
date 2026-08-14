@@ -37,7 +37,7 @@ impl Guard<Command, Ctx> for Cooldown {
             block.line(format!(
                 "⏳ one image every {COOLDOWN_SECS}s — try again in {wait}s"
             ));
-            return Ok(Some(Reply::Text(block)));
+            return Ok(Some(Reply::text(block)));
         }
 
         ctx.storage.kv_set(&key, now.to_string().as_bytes()).await?;
