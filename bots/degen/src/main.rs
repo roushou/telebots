@@ -14,7 +14,7 @@ async fn main() -> anyhow::Result<()> {
     botkit::Telemetry::init(env!("CARGO_PKG_NAME"));
 
     let config = Config::from_env()?;
-    let cmc = CmcClient::new(config.coinmarketcap_api_key)?;
+    let cmc = CmcClient::new(config.coinmarketcap_api_key.into_inner())?;
     let coingecko = CoinGeckoClient::new()?;
     let ctx = commands::Ctx { cmc, coingecko };
 

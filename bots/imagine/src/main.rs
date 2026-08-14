@@ -13,8 +13,10 @@ async fn main() -> anyhow::Result<()> {
     botkit::Telemetry::init(env!("CARGO_PKG_NAME"));
 
     let config = Config::from_env()?;
-    let generator =
-        Generator::cloudflare(config.cloudflare_account_id, config.cloudflare_api_token)?;
+    let generator = Generator::cloudflare(
+        config.cloudflare_account_id.into_inner(),
+        config.cloudflare_api_token.into_inner(),
+    )?;
     let storage = Storage::open(&config.db_path).await?;
     let ctx = commands::Ctx { generator, storage };
 

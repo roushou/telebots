@@ -1,25 +1,23 @@
 //! Typed application configuration, loaded and validated from the
 //! environment once at startup.
 
-use std::fmt;
-
 use anyhow::{Context, Result};
+use botkit::Secret;
 use serde::Deserialize;
 
 /// Default metrics port used when `TELEBOTS_METRICS_PORT` is unset.
 pub const DEFAULT_METRICS_PORT: u16 = 9101;
 
-/// Fully validated runtime configuration.
-///
-/// `Debug` redacts secrets.
-#[derive(Clone, Deserialize)]
+/// Fully validated runtime configuration. Secrets render as `<redacted>` in
+/// `Debug` output via [`Secret`].
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     /// Telegram bot token from @BotFather (`TELEBOTS_TELEGRAM_API_KEY`).
     #[serde(rename = "telebots_telegram_api_key")]
-    pub telegram_bot_token: String,
+    pub telegram_bot_token: Secret<String>,
     /// CoinMarketCap API key (`COINMARKETCAP_API_KEY`).
     #[serde(rename = "coinmarketcap_api_key")]
-    pub coinmarketcap_api_key: String,
+    pub coinmarketcap_api_key: Secret<String>,
     /// Metrics port the monitor polls (`TELEBOTS_METRICS_PORT`).
     #[serde(rename = "telebots_metrics_port", default = "default_metrics_port")]
     pub metrics_port: u16,
@@ -42,16 +40,6 @@ impl Config {
             .context("failed to read the environment")?
             .try_deserialize()
             .context("invalid configuration")
-    }
-}
-
-impl fmt::Debug for Config {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Config")
-            .field("telegram_bot_token", &"<redacted>")
-            .field("coinmarketcap_api_key", &"<redacted>")
-            .field("metrics_port", &self.metrics_port)
-            .finish()
     }
 }
 
@@ -88,8 +76,8 @@ mod tests {
             ("COINMARKETCAP_API_KEY", "key"),
             ("TELEBOTS_METRICS_PORT", "9101"),
         ]))?;
-        assert_eq!(cfg.telegram_bot_token, "tok");
-        assert_eq!(cfg.coinmarketcap_api_key, "key");
+        assert_eq!(cfg.telegram_bot_token.expose(), "tok");
+        assert_eq!(cfg.coinmarketcap_api_key.expose(), "key");
         assert_eq!(cfg.metrics_port, 9101);
         Ok(())
     }
