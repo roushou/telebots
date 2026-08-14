@@ -19,5 +19,5 @@ pub use botkit_derive::CommandSpec;
 pub use command::{Command, CommandSpec, MenuEntry};
 pub use error::Error;
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
-pub use request::Request;
+pub use request::{ChatKind, Request};
 pub use telemetry::Telemetry;
