@@ -31,6 +31,8 @@ monitor). Override with `MONITOR_API_URL` if the API lives elsewhere.
 | `MONITOR_DB_PATH` | SQLite path (default `monitor.db` locally; `/data/monitor.db` in the container via `docker-compose.yml`) |
 | `MONITOR_PORT`    | JSON API port (default `9110`; set in `docker-compose.yml`) |
 | `MONITOR_RETENTION_DAYS` | Snapshot retention in days (default `30`; older snapshots are pruned daily) |
+| `MONITOR_ALERT_TELEGRAM_TOKEN` | Optional: bot token used to send alerts; alerts are off when unset |
+| `MONITOR_ALERT_CHAT_ID` | Optional: chat to send alerts to (`@channel` or numeric id) |
 | `MONITOR_API_URL` | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`; set in `mise.toml` for the `web` task) |
 
 ## API

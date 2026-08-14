@@ -1,8 +1,10 @@
 //! The admin monitor: polls every bot's `/metrics` endpoint, keeps status
 //! snapshots in SQLite, and serves the dashboard + JSON API.
 
+mod alerter;
 mod api;
 mod db;
+mod health;
 mod poller;
 
 use std::time::Duration;
@@ -33,6 +35,8 @@ pub struct Config {
     pub db_path: String,
     pub port: u16,
     pub retention_days: u64,
+    pub alert_token: Option<String>,
+    pub alert_chat_id: Option<String>,
 }
 
 /// The raw environment variables, deserialized by the `config` crate.
@@ -50,6 +54,13 @@ struct RawEnv {
     /// Snapshot retention in days (`MONITOR_RETENTION_DAYS`).
     #[serde(rename = "monitor_retention_days", default = "default_retention_days")]
     retention_days: u64,
+    /// Telegram bot token for alerts (`MONITOR_ALERT_TELEGRAM_TOKEN`);
+    /// alerts are disabled when unset.
+    #[serde(rename = "monitor_alert_telegram_token", default)]
+    alert_token: Option<String>,
+    /// Chat to send alerts to (`MONITOR_ALERT_CHAT_ID`).
+    #[serde(rename = "monitor_alert_chat_id", default)]
+    alert_chat_id: Option<String>,
 }
 
 fn default_db_path() -> String {
@@ -87,6 +98,8 @@ impl Config {
             db_path: raw.db_path,
             port: raw.port,
             retention_days: raw.retention_days,
+            alert_token: raw.alert_token,
+            alert_chat_id: raw.alert_chat_id,
         })
     }
 
@@ -120,7 +133,15 @@ async fn main() -> anyhow::Result<()> {
         config.port
     );
 
-    poller::Poller::spawn(config.bots.clone(), db.clone());
+    let alerter = match (config.alert_token.as_ref(), config.alert_chat_id.as_ref()) {
+        (Some(token), Some(chat_id)) => {
+            tracing::info!("alerts enabled (telegram chat {chat_id})");
+            Some(alerter::Alerter::new(token.clone(), chat_id.clone()))
+        }
+        _ => None,
+    };
+
+    poller::Poller::spawn(config.bots.clone(), db.clone(), alerter);
 
     // Prune snapshots past the retention window, at startup and daily.
     let retention_days = config.retention_days;
