@@ -73,15 +73,20 @@ impl Bot {
             me.username()
         );
 
-        // Register the Telegram menu from the derived command spec.
-        self.api
+        // Register the Telegram menu from the derived command spec. A
+        // failure only costs the `/` autocomplete menu, so warn instead of
+        // aborting startup.
+        if let Err(e) = self
+            .api
             .set_my_commands(
                 C::menu()
                     .into_iter()
                     .map(|entry| BotCommand::new(entry.command, entry.description)),
             )
             .await
-            .map_err(|e| Error::Menu(e.to_string()))?;
+        {
+            tracing::warn!("failed to register the command menu: {e}");
+        }
 
         let metrics = Metrics::new(self.config.service, self.config.version);
         let port = self.config.metrics_port;

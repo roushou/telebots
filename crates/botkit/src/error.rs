@@ -13,10 +13,6 @@ pub enum Error {
     #[error("getMe failed — check the bot token ({0})")]
     GetMe(String),
 
-    /// Registering the command menu with Telegram failed.
-    #[error("failed to register the command menu: {0}")]
-    Menu(String),
-
     /// The metrics port could not be bound.
     #[error("failed to bind metrics port {port}")]
     Bind {
