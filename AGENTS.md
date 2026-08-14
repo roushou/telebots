@@ -68,8 +68,10 @@ goes in `crates/`.
   user) and a `reply` producing an explicit outcome. The bot implements
   `botkit::Command` (its `Ctx` + `reply`); botkit's dispatcher is the single
   place that sends. A bot composes update kinds into a `botkit::Router`
-  (`.command::<Cmd>()`, `.inline_query(handler)`) and hands it to
-  `Bot::run`. Imagine's `reply` returns a `botkit::Reply`
+  (`.command::<Cmd>()`, `.guarded_command::<Cmd, G>(guard)`,
+  `.inline_query(handler)`) and hands it to `Bot::run`. Cross-cutting
+  checks (rate limits, permissions) are `botkit::Guard`s on the router, not
+  command code. Imagine's `reply` returns a `botkit::Reply`
   (`Text(Block)` | `Background` intent) — no command calls `send_message`;
   generation runs in a botkit-supervised background job.
 - **Env**: per-bot `.env` (gitignored, per machine) loaded into the process

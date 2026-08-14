@@ -2,10 +2,10 @@
 //!
 //! Returns a [`Reply::Background`] intent; generation runs in a
 //! botkit-supervised background task that delivers the photo (or an error)
-//! and cleans up the placeholder. Requests are rate-limited per user via
-//! the persistent store (nothing in memory).
+//! and cleans up the placeholder. Rate limiting is a router guard (see
+//! `cooldown.rs`).
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use anyhow::{Result, bail};
 use botkit::{Job, Reply};
@@ -14,7 +14,6 @@ use cloudflare_ai::Model;
 use crate::commands::Ctx;
 
 const MAX_PROMPT_LEN: usize = 400;
-const COOLDOWN_SECS: i64 = 30;
 /// How long a generation may take before the bot gives up.
 const JOB_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -66,31 +65,9 @@ impl ImagineArgs {
         }
     }
 
-    /// Reject requests that come too close to the previous one. The
-    /// cooldown lives in the persistent store, so it survives restarts.
-    async fn enforce_cooldown(&self, ctx: &Ctx, chat_id: i64, user_id: Option<i64>) -> Result<()> {
-        let Some(user_id) = user_id else {
-            return Ok(());
-        };
-        let key = format!("cooldown:{chat_id}:{user_id}");
-        let now = Self::now_secs();
-        if let Some(raw) = ctx.storage.kv_get(&key).await?
-            && let Ok(text) = String::from_utf8(raw)
-            && let Ok(last) = text.parse::<i64>()
-            && now - last < COOLDOWN_SECS
-        {
-            let wait = COOLDOWN_SECS - (now - last);
-            bail!("⏳ one image every {COOLDOWN_SECS}s — try again in {wait}s");
-        }
-        ctx.storage.kv_set(&key, now.to_string().as_bytes()).await?;
-        Ok(())
-    }
-
     /// Produce the reply: run generation in the background and deliver the
     /// photo (or an error) when ready.
-    pub async fn reply(&self, ctx: &Ctx, chat_id: i64, user_id: Option<i64>) -> Result<Reply> {
-        self.enforce_cooldown(ctx, chat_id, user_id).await?;
-
+    pub async fn reply(&self, ctx: &Ctx) -> Result<Reply> {
         let ctx = ctx.clone();
         let prompt = self.prompt.clone();
         let model = self.model;
@@ -139,28 +116,11 @@ impl ImagineArgs {
             }),
         })
     }
-
-    fn now_secs() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use storage::Storage;
-
     use super::*;
-    use crate::{commands::Ctx, generator::Generator};
-
-    async fn ctx() -> anyhow::Result<Ctx> {
-        Ok(Ctx {
-            generator: Generator::cloudflare("acct".into(), "tok".into())?,
-            storage: Storage::open(":memory:").await?,
-        })
-    }
 
     #[test]
     fn parse_requires_prompt() {
@@ -198,27 +158,5 @@ mod tests {
     fn parse_requires_prompt_after_model() {
         assert!(ImagineArgs::parse("flux-2-dev").is_err());
         assert!(ImagineArgs::parse("flux-2-dev   ").is_err());
-    }
-
-    #[tokio::test]
-    async fn cooldown_blocks_repeated_requests() -> anyhow::Result<()> {
-        let ctx = ctx().await?;
-        let args = ImagineArgs::parse("a cat")?;
-        assert!(args.reply(&ctx, 1, Some(42)).await.is_ok());
-        let outcome = args.reply(&ctx, 1, Some(42)).await;
-        let err = outcome
-            .err()
-            .ok_or_else(|| anyhow::anyhow!("second request should be blocked"))?;
-        assert!(format!("{err:#}").contains("try again"));
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn cooldown_is_per_user() -> anyhow::Result<()> {
-        let ctx = ctx().await?;
-        let args = ImagineArgs::parse("a cat")?;
-        assert!(args.reply(&ctx, 1, Some(42)).await.is_ok());
-        assert!(args.reply(&ctx, 1, Some(7)).await.is_ok());
-        Ok(())
     }
 }

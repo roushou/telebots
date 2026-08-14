@@ -46,11 +46,7 @@ impl botkit::Command for Command {
     /// parses and delegates to its command object.
     async fn reply(&self, ctx: &Ctx, req: &botkit::Request) -> anyhow::Result<botkit::Reply> {
         match self {
-            Command::Imagine(raw) => {
-                ImagineArgs::parse(raw)?
-                    .reply(ctx, req.chat_id, req.user_id)
-                    .await
-            }
+            Command::Imagine(raw) => ImagineArgs::parse(raw)?.reply(ctx).await,
             Command::History => History.reply(ctx, req.chat_id).await,
             Command::Help => Help.reply().await,
         }

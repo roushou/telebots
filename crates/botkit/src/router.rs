@@ -12,8 +12,8 @@ use teloxide::{
 use crate::{
     command::{Command, MenuEntry},
     dispatch::{Supervisor, dispatch},
+    guard::{Guard, NoGuard},
     inline::{InlineHandler, InlineRequest},
-    reply::BoxFuture,
     request::Request,
 };
 
@@ -41,12 +41,22 @@ impl<Ctx: Clone + Send + Sync + 'static> Router<Ctx> {
     }
 
     /// Handle `/command` messages with the given command enum.
-    pub fn command<C>(mut self) -> Self
+    pub fn command<C>(self) -> Self
     where
         C: Command<Ctx = Ctx>,
     {
+        self.guarded_command::<C, NoGuard>(NoGuard)
+    }
+
+    /// Handle `/command` messages, running `guard` before each command.
+    pub fn guarded_command<C, G>(mut self, guard: G) -> Self
+    where
+        C: Command<Ctx = Ctx>,
+        G: Guard<C, Ctx>,
+    {
         self.menu.extend(C::menu());
-        self.branches.push(Box::new(command_branch::<C>));
+        self.branches
+            .push(Box::new(move || command_branch::<C, G>(guard)));
         self
     }
 
@@ -64,10 +74,12 @@ impl<Ctx: Clone + Send + Sync + 'static> Router<Ctx> {
     }
 }
 
-/// The command branch: parse `/command` text into the command enum.
-fn command_branch<C>() -> UpdateHandler<RequestError>
+/// The command branch: parse `/command` text, then run the guard and the
+/// command.
+fn command_branch<C, G>(guard: G) -> UpdateHandler<RequestError>
 where
     C: Command,
+    G: Guard<C, C::Ctx>,
 {
     Update::filter_message()
         .filter_map(|msg: Message, me: Me| {
@@ -75,7 +87,12 @@ where
             let text = msg.text().or_else(|| msg.caption())?;
             C::parse(text, bot_name)
         })
-        .endpoint(handle_command::<C>)
+        .endpoint(
+            move |cmd: C, bot: Api, msg: Message, ctx: C::Ctx, supervisor: Supervisor| {
+                let guard = guard.clone();
+                Box::pin(async move { handle_command(cmd, bot, msg, ctx, supervisor, guard).await })
+            },
+        )
 }
 
 /// The inline branch: answer `@botname <query>` with the handler's results.
@@ -106,18 +123,24 @@ where
     })
 }
 
-/// The command endpoint: turn the message into a [`Request`] and route the
-/// reply through botkit's send point. The boxed future keeps the endpoint
-/// `Injectable` when `C` is generic.
-fn handle_command<C: Command>(
+/// The command endpoint: run the guard, then route either its reply or the
+/// command's through botkit's send point.
+async fn handle_command<C, G>(
     cmd: C,
     bot: Api,
     msg: Message,
     ctx: C::Ctx,
     supervisor: Supervisor,
-) -> BoxFuture<ResponseResult<()>> {
-    Box::pin(async move {
-        let req = Request::from_message(&msg);
-        dispatch(&bot, &msg, &supervisor, cmd.reply(&ctx, &req)).await
-    })
+    guard: G,
+) -> ResponseResult<()>
+where
+    C: Command,
+    G: Guard<C, C::Ctx>,
+{
+    let req = Request::from_message(&msg);
+    match guard.check(&ctx, &req, &cmd).await {
+        Ok(Some(reply)) => dispatch(&bot, &msg, &supervisor, async { Ok(reply) }).await,
+        Ok(None) => dispatch(&bot, &msg, &supervisor, cmd.reply(&ctx, &req)).await,
+        Err(e) => dispatch(&bot, &msg, &supervisor, async { Err(e) }).await,
+    }
 }

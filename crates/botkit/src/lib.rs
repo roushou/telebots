@@ -57,6 +57,8 @@
 //! A [`Router`] composes multiple update kinds, all sharing one context:
 //!
 //! - `.command::<Cmd>()` — `/command` messages (the command enum).
+//! - `.guarded_command::<Cmd, G>(guard)` — commands, after running a
+//!   [`Guard`] that may short-circuit (rate limits, permissions, ...).
 //! - `.inline_query(handler)` — `@botname <query>` inline queries, answered
 //!   by an [`InlineHandler`] returning [`InlineAnswer`].
 //!
@@ -71,6 +73,7 @@
 //!   photo, an in-place edit, or a supervised background [`Job`].
 //! - [`Request`] — the teloxide-free slice of the update a command sees
 //!   (chat, user, and reply context).
+//! - [`Guard`] — a pre-command check that can short-circuit with a reply.
 //! - [`Router`] — the set of update handlers a bot serves.
 //! - [`Bot`] — the runner: poller, dispatcher, metrics server, heartbeat,
 //!   and shutdown drain, wired from the router.
@@ -93,6 +96,7 @@ mod command;
 mod config;
 mod dispatch;
 mod error;
+mod guard;
 mod health;
 mod inline;
 mod metrics;
@@ -107,6 +111,7 @@ pub use botkit_derive::CommandSpec;
 pub use command::{Command, CommandSpec, MenuEntry};
 pub use config::Secret;
 pub use error::Error;
+pub use guard::{Guard, NoGuard};
 pub use inline::{InlineAnswer, InlineHandler, InlineRequest, InlineResult};
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{ChatKind, Request};
