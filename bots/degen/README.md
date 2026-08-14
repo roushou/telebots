@@ -23,6 +23,12 @@ Use a separate test bot token from @BotFather for local dev.
 Add the bot to your group chat and it responds to commands (with or without
 `@botname` mention).
 
+## Inline queries
+
+Type `@<your-bot> btc eth` in *any* chat (you don't have to add the bot) to
+get a tappable price card for each symbol. Tapping a card sends the full
+quote into the chat.
+
 ## Commands
 
 | Command                  | Description                            |

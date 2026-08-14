@@ -32,9 +32,7 @@
 //!     async fn reply(&self, _ctx: &Ctx, req: &botkit::Request)
 //!         -> anyhow::Result<botkit::Reply>
 //!     {
-//!         let Cmd::Echo(text) = self else {
-//!             unreachable!();
-//!         };
+//!         let Cmd::Echo(text) = self else { unreachable!() };
 //!         let mut block = telebots_core::Block::new();
 //!         block.line(format!("You said: {text}"));
 //!         Ok(botkit::Reply::Text(block))
@@ -42,15 +40,25 @@
 //! }
 //! ```
 //!
-//! Then `main` builds and runs it:
+//! Then `main` assembles the handlers into a [`Router`] and runs it:
 //!
 //! ```ignore
+//! let router = botkit::Router::new(ctx).command::<Cmd>();
+//!
 //! botkit::Bot::builder()
 //!     .token(token)
 //!     .metrics_port(9101)
-//!     .run::<Cmd>(ctx)
+//!     .run(router)
 //!     .await?;
 //! ```
+//!
+//! # Beyond commands
+//!
+//! A [`Router`] composes multiple update kinds, all sharing one context:
+//!
+//! - `.command::<Cmd>()` — `/command` messages (the command enum).
+//! - `.inline_query(handler)` — `@botname <query>` inline queries, answered
+//!   by an [`InlineHandler`] returning [`InlineAnswer`].
 //!
 //! # Concepts
 //!
@@ -63,8 +71,9 @@
 //!   photo, an in-place edit, or a supervised background [`Job`].
 //! - [`Request`] — the teloxide-free slice of the update a command sees
 //!   (chat, user, and reply context).
+//! - [`Router`] — the set of update handlers a bot serves.
 //! - [`Bot`] — the runner: poller, dispatcher, metrics server, heartbeat,
-//!   and shutdown drain, wired from the command enum.
+//!   and shutdown drain, wired from the router.
 //! - [`Secret`] — a config value that never leaks into `Debug` output.
 //!
 //! # Rendering
@@ -84,9 +93,11 @@ pub mod command;
 pub mod config;
 pub mod error;
 mod health;
+mod inline;
 mod metrics;
 mod reply;
 pub mod request;
+mod router;
 pub mod telemetry;
 
 pub use async_trait::async_trait;
@@ -95,6 +106,8 @@ pub use botkit_derive::CommandSpec;
 pub use command::{Command, CommandSpec, MenuEntry};
 pub use config::Secret;
 pub use error::Error;
+pub use inline::{InlineAnswer, InlineHandler, InlineRequest, InlineResult};
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{ChatKind, Request};
+pub use router::Router;
 pub use telemetry::Telemetry;

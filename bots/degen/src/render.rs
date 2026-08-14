@@ -8,6 +8,18 @@ use telebots_core::{Block, Cell, Change, Line, Money};
 /// message limit.
 const DESCRIPTION_LIMIT: usize = 300;
 
+/// A one-line summary for inline results: "Price: $95,432.1 · 24h: ▲ +1.23%".
+pub fn quote_summary(q: &Quote) -> String {
+    let mut parts = Vec::new();
+    if let Some(price) = q.price {
+        parts.push(format!("Price: {}", Money::usd(price)));
+    }
+    if let Some(change) = q.change_24h {
+        parts.push(format!("24h: {}", Change::new(change)));
+    }
+    parts.join(" · ")
+}
+
 /// A quote card: name, price, 24h change, market cap, volume, rank.
 pub fn quote_card(q: &Quote) -> Block {
     // The card body as lines; the rank suffix attaches to the last line.
@@ -125,6 +137,11 @@ mod tests {
             market_cap: Some(1.23e12),
             volume_24h: Some(45.6e9),
         }
+    }
+
+    #[test]
+    fn quote_summary_full() {
+        assert_eq!(quote_summary(&quote()), "Price: $95,432.1 · 24h: ▲ +1.23%");
     }
 
     #[test]

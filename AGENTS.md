@@ -17,7 +17,9 @@ via Docker Compose.
 bots/<name>/          one self-contained bot: src/, Dockerfile, README.md,
                       .env (gitignored) + .env.example (committed)
 crates/botkit/        bot framework: bot.rs (poller + dispatcher),
+                      router.rs (Router: command + inline branches),
                       command.rs (Command/CommandSpec traits),
+                      inline.rs (InlineHandler/InlineAnswer),
                       reply.rs (Reply/Job outcomes), request.rs,
                       error.rs, health.rs (metrics server),
                       telemetry.rs (tracing, panic hook)
@@ -65,7 +67,9 @@ goes in `crates/`.
   `parse(raw) -> Result<Self>` (validation, usage errors surface to the
   user) and a `reply` producing an explicit outcome. The bot implements
   `botkit::Command` (its `Ctx` + `reply`); botkit's dispatcher is the single
-  place that sends. Imagine's `reply` returns a `botkit::Reply`
+  place that sends. A bot composes update kinds into a `botkit::Router`
+  (`.command::<Cmd>()`, `.inline_query(handler)`) and hands it to
+  `Bot::run`. Imagine's `reply` returns a `botkit::Reply`
   (`Text(Block)` | `Background` intent) — no command calls `send_message`;
   generation runs in a botkit-supervised background job.
 - **Env**: per-bot `.env` (gitignored, per machine) loaded into the process

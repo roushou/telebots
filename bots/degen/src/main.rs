@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod inline;
 mod render;
 
 use coingecko::CoinGeckoClient;
@@ -17,13 +18,16 @@ async fn main() -> anyhow::Result<()> {
     let cmc = CmcClient::new(config.coinmarketcap_api_key.into_inner())?;
     let coingecko = CoinGeckoClient::new()?;
     let ctx = commands::Ctx { cmc, coingecko };
+    let router = botkit::Router::new(ctx)
+        .command::<commands::Command>()
+        .inline_query(inline::Inline);
 
     botkit::Bot::builder()
         .token(config.telegram_bot_token)
         .service(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .metrics_port(config.metrics_port)
-        .run::<commands::Command>(ctx)
+        .run(router)
         .await?;
     Ok(())
 }

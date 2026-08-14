@@ -1,27 +1,19 @@
 //! The bot: owns the poller, the command menu, the dispatcher, and graceful
-//! shutdown. Bots build a [`Bot`], hand it their context, and call
-//! [`Bot::run`]; teloxide never appears in a bot's code.
+//! shutdown. Bots build a [`Bot`], assemble a [`crate::Router`] of update
+//! handlers, and call [`Bot::run`]; teloxide never appears in a bot's code.
 
 use std::{sync::Arc, time::Duration};
 
 use teloxide::{
     Bot as Api, RequestError,
-    dispatching::{Dispatcher, UpdateFilterExt as _, UpdateHandler},
+    dispatching::{Dispatcher, UpdateHandler},
     dptree,
     error_handlers::ErrorHandler,
     prelude::Requester,
-    requests::ResponseResult,
-    types::{BotCommand, Me, Message, Update},
+    types::BotCommand,
 };
 
-use crate::{
-    command::Command,
-    error::Error,
-    health::Server,
-    metrics::Metrics,
-    reply::{BoxFuture, Supervisor, dispatch},
-    request::Request,
-};
+use crate::{error::Error, health::Server, metrics::Metrics, reply::Supervisor, router::Router};
 
 /// How long shutdown waits for in-flight background jobs.
 const DRAIN_GRACE: Duration = Duration::from_secs(15);
@@ -50,12 +42,11 @@ impl Bot {
         }
     }
 
-    /// Run the poller. `C` is the bot's command enum (deriving
-    /// [`crate::CommandSpec`] and implementing [`Command`]); `ctx` is the
-    /// bot's command context.
-    pub async fn run<C>(self, ctx: C::Ctx) -> Result<(), Error>
+    /// Run the poller. `router` is the assembled set of update handlers
+    /// (commands, inline queries, ...) sharing one context.
+    pub async fn run<Ctx>(self, router: Router<Ctx>) -> Result<(), Error>
     where
-        C: Command,
+        Ctx: Clone + Send + Sync + 'static,
     {
         let _span = tracing::info_span!("app", service = self.service).entered();
 
@@ -68,14 +59,15 @@ impl Bot {
             .map_err(|e| Error::GetMe(e.to_string()))?;
         tracing::info!("{} started (telegram: @{})", self.service, me.username());
 
+        let (ctx, menu, branches) = router.into_parts();
+
         // Register the Telegram menu from the derived command spec. A
         // failure only costs the `/` autocomplete menu, so warn instead of
         // aborting startup.
         if let Err(e) = self
             .api
             .set_my_commands(
-                C::menu()
-                    .into_iter()
+                menu.into_iter()
                     .map(|entry| BotCommand::new(entry.command, entry.description)),
             )
             .await
@@ -93,7 +85,11 @@ impl Bot {
         Self::spawn_heartbeat(self.api.clone(), metrics.clone());
 
         let supervisor = Supervisor::new(metrics.clone());
-        let mut dispatcher = Dispatcher::builder(self.api, Self::routes::<C>())
+        let mut tree: UpdateHandler<RequestError> = dptree::entry();
+        for branch in branches {
+            tree = tree.branch(branch());
+        }
+        let mut dispatcher = Dispatcher::builder(self.api, tree)
             .dependencies(dptree::deps![ctx, supervisor.clone()])
             .error_handler(Self::dispatch_error_handler(metrics))
             .enable_ctrlc_handler()
@@ -115,22 +111,6 @@ impl Bot {
         // isn't cancelled mid-write.
         supervisor.drain(DRAIN_GRACE).await;
         Ok(())
-    }
-
-    /// The handler tree, built from the command enum's derived parser.
-    fn routes<C>() -> UpdateHandler<RequestError>
-    where
-        C: Command,
-    {
-        dptree::entry().branch(
-            Update::filter_message()
-                .filter_map(|msg: Message, me: Me| {
-                    let bot_name = me.user.username.as_deref()?;
-                    let text = msg.text().or_else(|| msg.caption())?;
-                    C::parse(text, bot_name)
-                })
-                .endpoint(handle::<C>),
-        )
     }
 
     /// Log panics with location and count them in the metrics.
@@ -252,26 +232,10 @@ impl BotBuilder {
     }
 
     /// Build and run the poller.
-    pub async fn run<C>(self, ctx: C::Ctx) -> Result<(), Error>
+    pub async fn run<Ctx>(self, router: Router<Ctx>) -> Result<(), Error>
     where
-        C: Command,
+        Ctx: Clone + Send + Sync + 'static,
     {
-        self.build()?.run::<C>(ctx).await
+        self.build()?.run(router).await
     }
-}
-
-/// The single command endpoint: turn the update into a [`Request`] and route
-/// the command's reply through botkit's send point. The boxed future keeps the
-/// endpoint `Injectable` when `C` is generic.
-fn handle<C: Command>(
-    cmd: C,
-    bot: Api,
-    msg: Message,
-    ctx: C::Ctx,
-    supervisor: Supervisor,
-) -> BoxFuture<ResponseResult<()>> {
-    Box::pin(async move {
-        let req = Request::from_message(&msg);
-        dispatch(&bot, &msg, &supervisor, cmd.reply(&ctx, &req)).await
-    })
 }

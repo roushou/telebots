@@ -21,6 +21,7 @@ mod market;
 mod price;
 mod trending;
 
+pub use args::Symbols;
 use coingecko::CoinGeckoClient;
 use coinmarketcap::CmcClient;
 

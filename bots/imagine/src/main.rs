@@ -19,13 +19,14 @@ async fn main() -> anyhow::Result<()> {
     )?;
     let storage = Storage::open(&config.db_path).await?;
     let ctx = commands::Ctx { generator, storage };
+    let router = botkit::Router::new(ctx).command::<commands::Command>();
 
     botkit::Bot::builder()
         .token(config.telegram_bot_token)
         .service(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .metrics_port(config.metrics_port)
-        .run::<commands::Command>(ctx)
+        .run(router)
         .await?;
     Ok(())
 }
