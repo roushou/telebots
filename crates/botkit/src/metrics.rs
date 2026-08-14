@@ -25,6 +25,7 @@ pub struct Health {
     pub telegram: &'static str,
     pub last_heartbeat_ago_secs: Option<i64>,
     pub last_update_ago_secs: Option<i64>,
+    pub commands_total: u64,
     pub jobs_active: usize,
     pub jobs_failed_total: u64,
     pub panics_total: u64,
@@ -39,6 +40,7 @@ pub struct Metrics {
     telegram_ok: Arc<AtomicBool>,
     last_heartbeat: Arc<AtomicI64>,
     last_update: Arc<AtomicI64>,
+    commands_total: Arc<AtomicU64>,
     jobs_active: Arc<AtomicUsize>,
     jobs_failed: Arc<AtomicU64>,
     panics: Arc<AtomicU64>,
@@ -54,6 +56,7 @@ impl Metrics {
             telegram_ok: Arc::new(AtomicBool::new(true)),
             last_heartbeat: Arc::new(AtomicI64::new(now)),
             last_update: Arc::new(AtomicI64::new(now)),
+            commands_total: Arc::new(AtomicU64::new(0)),
             jobs_active: Arc::new(AtomicUsize::new(0)),
             jobs_failed: Arc::new(AtomicU64::new(0)),
             panics: Arc::new(AtomicU64::new(0)),
@@ -73,9 +76,10 @@ impl Metrics {
         self.telegram_ok.store(false, Ordering::Relaxed);
     }
 
-    /// An update was dispatched.
-    pub fn note_update(&self) {
+    /// A command was dispatched.
+    pub fn note_command(&self) {
         self.last_update.store(Self::now_unix(), Ordering::Relaxed);
+        self.commands_total.fetch_add(1, Ordering::Relaxed);
     }
 
     /// A background job started.
@@ -111,6 +115,7 @@ impl Metrics {
             },
             last_heartbeat_ago_secs: ago(self.last_heartbeat.load(Ordering::Relaxed)),
             last_update_ago_secs: ago(self.last_update.load(Ordering::Relaxed)),
+            commands_total: self.commands_total.load(Ordering::Relaxed),
             jobs_active: self.jobs_active.load(Ordering::Relaxed),
             jobs_failed_total: self.jobs_failed.load(Ordering::Relaxed),
             panics_total: self.panics.load(Ordering::Relaxed),
@@ -157,10 +162,13 @@ mod tests {
     #[test]
     fn job_counters_track_activity() {
         let m = Metrics::new("test", "0.1.0");
+        m.note_command();
+        m.note_command();
         m.job_started();
         m.job_started();
         m.job_finished(true);
         let h = m.health();
+        assert_eq!(h.commands_total, 2);
         assert_eq!(h.jobs_active, 1);
         assert_eq!(h.jobs_failed_total, 1);
         m.note_panic();

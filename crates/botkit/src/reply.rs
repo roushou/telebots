@@ -110,15 +110,8 @@ pub struct JobCtx {
     pub user_id: Option<i64>,
 }
 
-/// The dispatch glue: job supervision and runtime metrics, injected as a
-/// single dependency into handlers.
-#[derive(Clone)]
-pub(crate) struct Runtime {
-    pub supervisor: Supervisor,
-    pub metrics: Metrics,
-}
-
-/// Tracks in-flight background jobs so shutdown can drain them.
+/// Tracks in-flight background jobs so shutdown can drain them, and carries
+/// the runtime metrics. Injected as a single dependency into handlers.
 #[derive(Clone)]
 pub(crate) struct Supervisor {
     inner: Arc<tokio::sync::Mutex<JoinSet<()>>>,
@@ -254,13 +247,13 @@ impl Supervisor {
 pub(crate) async fn dispatch<F>(
     bot: &Bot,
     msg: &Message,
-    runtime: &Runtime,
+    supervisor: &Supervisor,
     reply: F,
 ) -> ResponseResult<()>
 where
     F: Future<Output = Result<Reply>>,
 {
-    runtime.metrics.note_update();
+    supervisor.metrics.note_command();
     match reply.await {
         Ok(Reply::Text(block)) => {
             bot.send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
@@ -280,8 +273,7 @@ where
                 chat_id: msg.chat.id.0,
                 user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
             };
-            runtime
-                .supervisor
+            supervisor
                 .spawn(job, ctx, bot.clone(), msg.clone(), placeholder)
                 .await;
         }

@@ -18,7 +18,7 @@ use crate::{
     error::Error,
     health::Server,
     metrics::Metrics,
-    reply::{BoxFuture, Runtime, Supervisor, dispatch},
+    reply::{BoxFuture, Supervisor, dispatch},
     request::Request,
 };
 
@@ -91,12 +91,9 @@ impl Bot {
         Self::install_panic_hook(metrics.clone());
         Self::spawn_heartbeat(self.api.clone(), metrics.clone());
 
-        let runtime = Runtime {
-            supervisor: Supervisor::new(metrics.clone()),
-            metrics,
-        };
+        let supervisor = Supervisor::new(metrics);
         let mut dispatcher = Dispatcher::builder(self.api, Self::routes::<C>())
-            .dependencies(dptree::deps![ctx, runtime.clone()])
+            .dependencies(dptree::deps![ctx, supervisor.clone()])
             .enable_ctrlc_handler()
             .build();
 
@@ -114,7 +111,7 @@ impl Bot {
 
         // Drain in-flight background jobs before exiting, so a generation
         // isn't cancelled mid-write.
-        runtime.supervisor.drain(DRAIN_GRACE).await;
+        supervisor.drain(DRAIN_GRACE).await;
         Ok(())
     }
 
@@ -257,10 +254,10 @@ fn handle<C: Command>(
     bot: Api,
     msg: Message,
     ctx: C::Ctx,
-    runtime: Runtime,
+    supervisor: Supervisor,
 ) -> BoxFuture<ResponseResult<()>> {
     Box::pin(async move {
         let req = Request::from_message(&msg);
-        dispatch(&bot, &msg, &runtime, cmd.reply(&ctx, &req)).await
+        dispatch(&bot, &msg, &supervisor, cmd.reply(&ctx, &req)).await
     })
 }
