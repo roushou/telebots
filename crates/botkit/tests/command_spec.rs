@@ -12,6 +12,8 @@ enum TestCommand {
     Echo(String),
     #[command(description = "Ping", aliases = "p")]
     Ping,
+    #[command(description = "Renamed command", rename = "renamed")]
+    Renamed,
     #[command(description = "Hidden from help", hide)]
     Secret,
 }
@@ -20,7 +22,7 @@ enum TestCommand {
 fn help_lists_visible_commands() {
     assert_eq!(
         TestCommand::help(),
-        "Test commands:\n\n/hi — Say hi\n/echo — Echo text\n/ping, /p — Ping"
+        "Test commands:\n\n/hi — Say hi\n/echo — Echo text\n/ping, /p — Ping\n/renamed — Renamed command"
     );
 }
 
@@ -46,6 +48,15 @@ fn parse_matches_aliases() {
 }
 
 #[test]
+fn parse_respects_explicit_rename() {
+    assert_eq!(
+        TestCommand::parse("/renamed", "bot"),
+        Some(TestCommand::Renamed)
+    );
+    assert_eq!(TestCommand::parse("/renamed_command", "bot"), None);
+}
+
+#[test]
 fn parse_handles_bot_mention() {
     assert_eq!(
         TestCommand::parse("/echo@mybot hi", "mybot"),
@@ -58,5 +69,5 @@ fn parse_handles_bot_mention() {
 fn menu_lists_visible_primary_commands() {
     let menu = TestCommand::menu();
     let names = menu.iter().map(|m| m.command.as_str()).collect::<Vec<_>>();
-    assert_eq!(names, ["/hi", "/echo", "/ping"]);
+    assert_eq!(names, ["/hi", "/echo", "/ping", "/renamed"]);
 }

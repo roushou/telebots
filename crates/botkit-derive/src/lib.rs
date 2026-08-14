@@ -7,7 +7,7 @@
 //! Supported `#[command(...)]` attributes:
 //!
 //! - enum: `rename_rule`, `description`, `prefix`, `separator`
-//! - variant: `description`, `rename`, `aliases`, `hide`
+//! - variant: `description`, `rename`, `rename_rule`, `aliases`, `hide`
 //!
 //! Variants are unit (no arguments) or carry exactly one unnamed field. The
 //! field is parsed with `FromStr`; use a raw `String` and validate yourself
@@ -35,6 +35,7 @@ struct EnumAttrs {
 struct VariantAttrs {
     description: Option<String>,
     rename: Option<String>,
+    rename_rule: Option<String>,
     aliases: Vec<String>,
     hide: bool,
 }
@@ -67,6 +68,13 @@ pub fn derive_command_spec(input: TokenStream) -> TokenStream {
 fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
     let ident = &input.ident;
 
+    if !input.generics.params.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &input.generics,
+            "`CommandSpec` does not support generic enums",
+        ));
+    }
+
     let data = match &input.data {
         Data::Enum(data) => data,
         _ => {
@@ -86,9 +94,18 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
     for variant in &data.variants {
         let attrs = VariantAttrs::parse(&variant.attrs)?;
 
-        let name = match &attrs.rename {
-            Some(rename) => rename.clone(),
-            None => apply_rename_rule(
+        let name = match (&attrs.rename, &attrs.rename_rule) {
+            (Some(rename), None) => rename.clone(),
+            (Some(_), Some(_)) => {
+                return Err(syn::Error::new_spanned(
+                    variant,
+                    "`rename` and `rename_rule` cannot both be set on a variant",
+                ));
+            }
+            (None, Some(rule)) => {
+                apply_rename_rule(rule, &variant.ident.to_string(), variant.ident.span())?
+            }
+            (None, None) => apply_rename_rule(
                 rename_rule,
                 &variant.ident.to_string(),
                 variant.ident.span(),
@@ -281,6 +298,8 @@ impl VariantAttrs {
                     out.description = Some(meta_string(&meta)?);
                 } else if meta.path.is_ident("rename") {
                     out.rename = Some(meta_string(&meta)?);
+                } else if meta.path.is_ident("rename_rule") {
+                    out.rename_rule = Some(meta_string(&meta)?);
                 } else if meta.path.is_ident("aliases") {
                     let raw = meta_string(&meta)?;
                     out.aliases = raw
