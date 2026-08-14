@@ -10,13 +10,30 @@ use anyhow::Result;
 
 use crate::{Reply, Request};
 
+/// A single entry in the Telegram command menu.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MenuEntry {
+    /// The command as Telegram shows it, prefix included (e.g. `/price`).
+    pub command: String,
+    /// Human-readable description shown in the menu.
+    pub description: String,
+}
+
 /// Derive-generated command metadata.
 ///
 /// `#[derive(botkit::CommandSpec)]` on a command enum produces parsing,
-/// the command menu, and this trait's `help` text.
-pub trait CommandSpec {
+/// the command menu, and this trait's `help` text. Everything here is
+/// teloxide-free.
+pub trait CommandSpec: Sized {
     /// Human-readable command list (as `/help` shows it).
     fn help() -> String;
+
+    /// The Telegram command menu.
+    fn menu() -> Vec<MenuEntry>;
+
+    /// Parse a message text into a command, or `None` if it is not one of
+    /// ours. `bot_name` disambiguates `@botname` mentions in groups.
+    fn parse(text: &str, bot_name: &str) -> Option<Self>;
 }
 
 /// The behavior a bot implements: its context plus one reply method.

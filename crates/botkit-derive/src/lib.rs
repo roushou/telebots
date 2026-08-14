@@ -1,9 +1,8 @@
 //! Derive macro for [`botkit::CommandSpec`].
 //!
-//! Generates the teloxide `BotCommands` implementation (parsing, menu,
-//! descriptions) plus the teloxide-free `CommandSpec::help`. The generated
-//! code references teloxide only through `botkit::__private`, so the
-//! consuming bot never depends on teloxide directly.
+//! Generates parsing, the Telegram menu, and `/help` text for a command enum.
+//! The generated code references only botkit's own public types, so the
+//! consuming bot never depends on teloxide.
 //!
 //! Supported `#[command(...)]` attributes:
 //!
@@ -95,74 +94,54 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
                 variant.ident.span(),
             )?,
         };
-        let aliases = attrs.aliases;
 
         variants.push(Variant {
             prefixed: format!("{prefix}{name}"),
-            aliases,
+            name,
+            aliases: attrs.aliases,
             description: attrs.description.unwrap_or_default(),
             constructor: constructor(variant)?,
             hide: attrs.hide,
-            name,
         });
     }
 
     let visible = variants.iter().filter(|v| !v.hide).collect::<Vec<_>>();
 
-    let commands = visible.iter().map(|v| &v.prefixed);
-    let descriptions = visible.iter().map(|v| &v.description);
+    let help = build_help(&enum_attrs, prefix, &visible);
 
-    // `descriptions()` — the command list rendered by `/help`.
-    let command_descriptions = visible.iter().map(|v| {
-        let name = &v.name;
+    let menu_entries = visible.iter().map(|v| {
+        let command = &v.prefixed;
         let description = &v.description;
-        let aliases = &v.aliases; // bare
         quote! {
-            ::botkit::__private::CommandDescription {
-                prefix: #prefix,
-                command: #name,
-                aliases: &[#(#aliases),*],
-                description: #description,
+            ::botkit::MenuEntry {
+                command: #command.to_string(),
+                description: #description.to_string(),
             }
         }
     });
 
-    let global_description = match &enum_attrs.description {
-        Some(d) => quote! { .global_description(#d) },
-        None => quote! {},
-    };
-
-    // `parse()` — split the command, handle `@botname`, match by name/alias.
     let prefixed_matches = variants.iter().map(|v| &v.prefixed);
     let constructors = variants.iter().map(|v| &v.constructor);
     let alias_arms = variants.iter().filter(|v| !v.aliases.is_empty()).map(|v| {
         let aliases = v.aliases.iter().map(|alias| format!("{prefix}{alias}"));
         let constructor = &v.constructor;
         quote! {
-            c if [#(#aliases),*].contains(&c) => ::std::result::Result::Ok(#constructor),
+            c if [#(#aliases),*].contains(&c) => ::std::option::Option::Some(#constructor),
         }
     });
 
-    let help_impl = quote! {
+    Ok(quote! {
         impl ::botkit::CommandSpec for #ident {
             fn help() -> ::std::string::String {
-                <#ident as ::botkit::__private::BotCommands>::descriptions().to_string()
-            }
-        }
-    };
-
-    let bot_commands_impl = quote! {
-        impl ::botkit::__private::BotCommands for #ident {
-            fn descriptions() -> ::botkit::__private::CommandDescriptions<'static> {
-                ::botkit::__private::CommandDescriptions::new(&[
-                    #(#command_descriptions),*
-                ])
-                #global_description
+                #help.to_string()
             }
 
-            fn parse(s: &str, bot_name: &str) -> ::std::result::Result<Self, ::botkit::__private::ParseError> {
+            fn menu() -> ::std::vec::Vec<::botkit::MenuEntry> {
+                ::std::vec![#(#menu_entries),*]
+            }
+
+            fn parse(s: &str, bot_name: &str) -> ::std::option::Option<Self> {
                 use ::std::str::FromStr;
-                use ::botkit::__private::ParseError;
 
                 let mut words = s.splitn(2, #separator);
                 let mut full_command = words.next().unwrap().split('@');
@@ -172,31 +151,45 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
                 match bot_username {
                     ::std::option::Option::None => {}
                     ::std::option::Option::Some(username) if username.eq_ignore_ascii_case(bot_name) => {}
-                    ::std::option::Option::Some(n) => {
-                        return ::std::result::Result::Err(ParseError::WrongBotName(n.to_owned()));
-                    }
+                    ::std::option::Option::Some(_) => return ::std::option::Option::None,
                 }
 
                 let args = words.next().unwrap_or("").to_owned();
                 match command {
-                    #(#prefixed_matches => ::std::result::Result::Ok(#constructors),)*
+                    #(#prefixed_matches => ::std::option::Option::Some(#constructors),)*
                     #(#alias_arms)*
-                    _ => ::std::result::Result::Err(ParseError::UnknownCommand(command.to_owned())),
+                    _ => ::std::option::Option::None,
                 }
             }
-
-            fn bot_commands() -> ::std::vec::Vec<::botkit::__private::BotCommand> {
-                ::std::vec![
-                    #(::botkit::__private::BotCommand::new(#commands, #descriptions)),*
-                ]
-            }
         }
-    };
-
-    Ok(quote! {
-        #help_impl
-        #bot_commands_impl
     })
+}
+
+/// The `/help` text: global description (if any), then one line per visible
+/// command, formatted exactly as teloxide's command list used to render.
+fn build_help(enum_attrs: &EnumAttrs, prefix: &str, visible: &[&Variant]) -> String {
+    let mut out = String::new();
+    if let Some(global) = &enum_attrs.description {
+        out.push_str(global);
+        out.push_str("\n\n");
+    }
+    for (i, variant) in visible.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(prefix);
+        out.push_str(&variant.name);
+        for alias in &variant.aliases {
+            out.push_str(", ");
+            out.push_str(prefix);
+            out.push_str(alias);
+        }
+        if !variant.description.is_empty() {
+            out.push_str(" — ");
+            out.push_str(&variant.description);
+        }
+    }
+    out
 }
 
 fn apply_rename_rule(rule: &str, name: &str, span: proc_macro2::Span) -> syn::Result<String> {
@@ -240,10 +233,7 @@ fn constructor(variant: &syn::Variant) -> syn::Result<TokenStream2> {
             }
             let ty = &fields.unnamed.first().unwrap().ty;
             Ok(quote! {
-                Self::#name(
-                    <#ty as ::std::str::FromStr>::from_str(&args)
-                        .map_err(|e| ::botkit::__private::ParseError::IncorrectFormat(e.into()))?
-                )
+                Self::#name(<#ty as ::std::str::FromStr>::from_str(&args).ok()?)
             })
         }
         Fields::Named(_) => Err(syn::Error::new_spanned(

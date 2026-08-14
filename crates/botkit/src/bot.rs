@@ -6,12 +6,11 @@ use std::time::Duration;
 
 use teloxide::{
     Bot as Api, RequestError,
-    dispatching::{Dispatcher, HandlerExt as _, UpdateFilterExt as _, UpdateHandler},
+    dispatching::{Dispatcher, UpdateFilterExt as _, UpdateHandler},
     dptree,
     prelude::Requester,
     requests::ResponseResult,
-    types::{Message, Update},
-    utils::command::BotCommands,
+    types::{BotCommand, Me, Message, Update},
 };
 
 use crate::{
@@ -57,7 +56,7 @@ impl Bot {
     /// bot's command context.
     pub async fn run<C>(self, ctx: C::Ctx) -> Result<(), Error>
     where
-        C: Command + BotCommands,
+        C: Command,
     {
         let _span = tracing::info_span!("app", service = self.config.service).entered();
 
@@ -76,7 +75,11 @@ impl Bot {
 
         // Register the Telegram menu from the derived command spec.
         self.api
-            .set_my_commands(C::bot_commands())
+            .set_my_commands(
+                C::menu()
+                    .into_iter()
+                    .map(|entry| BotCommand::new(entry.command, entry.description)),
+            )
             .await
             .map_err(|e| Error::Menu(e.to_string()))?;
 
@@ -119,11 +122,15 @@ impl Bot {
     /// The handler tree, built from the command enum's derived parser.
     fn routes<C>() -> UpdateHandler<RequestError>
     where
-        C: Command + BotCommands,
+        C: Command,
     {
         dptree::entry().branch(
             Update::filter_message()
-                .filter_command::<C>()
+                .filter_map(|msg: Message, me: Me| {
+                    let bot_name = me.user.username.as_deref()?;
+                    let text = msg.text().or_else(|| msg.caption())?;
+                    C::parse(text, bot_name)
+                })
                 .endpoint(handle::<C>),
         )
     }

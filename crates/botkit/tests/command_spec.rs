@@ -26,48 +26,37 @@ fn help_lists_visible_commands() {
 
 #[test]
 fn parse_matches_command_and_arguments() {
-    use botkit::__private::BotCommands;
-
-    assert_eq!(TestCommand::parse("/hi", "bot").unwrap(), TestCommand::Hi);
+    assert_eq!(TestCommand::parse("/hi", "bot"), Some(TestCommand::Hi));
     assert_eq!(
-        TestCommand::parse("/echo hello world", "bot").unwrap(),
-        TestCommand::Echo("hello world".into())
+        TestCommand::parse("/echo hello world", "bot"),
+        Some(TestCommand::Echo("hello world".into()))
     );
     // Hidden commands still parse.
     assert_eq!(
-        TestCommand::parse("/secret", "bot").unwrap(),
-        TestCommand::Secret
+        TestCommand::parse("/secret", "bot"),
+        Some(TestCommand::Secret)
     );
-    assert!(TestCommand::parse("/nope", "bot").is_err());
+    assert_eq!(TestCommand::parse("/nope", "bot"), None);
 }
 
 #[test]
 fn parse_matches_aliases() {
-    use botkit::__private::BotCommands;
-
-    assert_eq!(
-        TestCommand::parse("/ping", "bot").unwrap(),
-        TestCommand::Ping
-    );
-    assert_eq!(TestCommand::parse("/p", "bot").unwrap(), TestCommand::Ping);
+    assert_eq!(TestCommand::parse("/ping", "bot"), Some(TestCommand::Ping));
+    assert_eq!(TestCommand::parse("/p", "bot"), Some(TestCommand::Ping));
 }
 
 #[test]
 fn parse_handles_bot_mention() {
-    use botkit::__private::BotCommands;
-
     assert_eq!(
-        TestCommand::parse("/echo@mybot hi", "mybot").unwrap(),
-        TestCommand::Echo("hi".into())
+        TestCommand::parse("/echo@mybot hi", "mybot"),
+        Some(TestCommand::Echo("hi".into()))
     );
-    assert!(TestCommand::parse("/echo@otherbot hi", "mybot").is_err());
+    assert_eq!(TestCommand::parse("/echo@otherbot hi", "mybot"), None);
 }
 
 #[test]
 fn menu_lists_visible_primary_commands() {
-    use botkit::__private::BotCommands;
-
-    let menu = TestCommand::bot_commands();
-    let names = menu.iter().map(|c| c.command.as_str()).collect::<Vec<_>>();
+    let menu = TestCommand::menu();
+    let names = menu.iter().map(|m| m.command.as_str()).collect::<Vec<_>>();
     assert_eq!(names, ["/hi", "/echo", "/ping"]);
 }

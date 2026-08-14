@@ -16,18 +16,8 @@ pub mod telemetry;
 pub use async_trait::async_trait;
 pub use bot::{AppConfig, Bot};
 pub use botkit_derive::CommandSpec;
-pub use command::{Command, CommandSpec};
+pub use command::{Command, CommandSpec, MenuEntry};
 pub use error::Error;
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::Request;
 pub use telemetry::Telemetry;
-
-/// Re-exports for the `#[derive(CommandSpec)]` macro's generated code.
-/// Not public API.
-#[doc(hidden)]
-pub mod __private {
-    pub use teloxide::{
-        types::BotCommand,
-        utils::command::{BotCommands, CommandDescription, CommandDescriptions, ParseError},
-    };
-}
