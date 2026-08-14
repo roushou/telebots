@@ -46,10 +46,7 @@ run = "cargo build --workspace"
 [tasks.check]
 description = "fmt + lint + test + build — what CI runs"
 depends = ["fmt", "lint"]
-run = [
-    "cargo test --workspace",
-    "cargo build --workspace",
-]
+run = ["cargo test --workspace", "cargo build --workspace"]
 
 [tasks.bot]
 description = "Run a workspace binary locally with its dev token from .env (degen, imagine, monitor)"
