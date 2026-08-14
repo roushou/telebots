@@ -14,7 +14,7 @@ pub mod request;
 pub mod telemetry;
 
 pub use async_trait::async_trait;
-pub use bot::{AppConfig, Bot};
+pub use bot::{Bot, BotBuilder};
 pub use botkit_derive::CommandSpec;
 pub use command::{Command, CommandSpec, MenuEntry};
 pub use error::Error;

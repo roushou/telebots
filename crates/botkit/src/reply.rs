@@ -334,7 +334,14 @@ mod tests {
             })
         });
 
-        let outcome = Supervisor::run_job(job, JobCtx { chat_id: 1, user_id: None }).await;
+        let outcome = Supervisor::run_job(
+            job,
+            JobCtx {
+                chat_id: 1,
+                user_id: None,
+            },
+        )
+        .await;
         assert!(outcome.is_err());
         assert!(
             dropped.load(Ordering::SeqCst),

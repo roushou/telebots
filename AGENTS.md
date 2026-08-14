@@ -92,9 +92,9 @@ goes in `crates/`.
   of `.unwrap()`.
 - **Framework boundaries**: `crates/botkit` is a reusable framework and must
   not know bot-specific facts (no bot names, ports, or name→value tables).
-  Identity and runtime knobs are injected via
-  `AppConfig { service, version, metrics_port }`. Each bot's own
-  `config.rs` owns its defaults (degen 9101, imagine 9102) and reads the
+  Identity and runtime knobs are injected via `Bot::builder()` (token,
+  service, version, metrics port/addr). Each bot's own `config.rs` owns
+  its defaults (degen 9101, imagine 9102) and reads the
   `TELEBOTS_METRICS_PORT` override. Bots depend on botkit, never on
   teloxide — the transport stays inside botkit.
 

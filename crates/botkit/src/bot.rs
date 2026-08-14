@@ -28,26 +28,24 @@ const DRAIN_GRACE: Duration = Duration::from_secs(15);
 /// How often the Telegram `get_me` heartbeat runs.
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
-/// Application configuration.
-#[derive(Debug, Clone, Copy)]
-pub struct AppConfig {
-    pub service: &'static str,
-    pub version: &'static str,
-    pub metrics_port: u16,
-}
-
 /// A configured bot, ready to run.
 pub struct Bot {
     api: Api,
-    config: AppConfig,
+    service: &'static str,
+    version: &'static str,
+    metrics_port: u16,
+    metrics_addr: &'static str,
 }
 
 impl Bot {
-    /// A bot from its Telegram token and [`AppConfig`].
-    pub fn new(token: impl Into<String>, config: AppConfig) -> Self {
-        Self {
-            api: Api::new(token),
-            config,
+    /// Start building a bot.
+    pub fn builder() -> BotBuilder {
+        BotBuilder {
+            token: None,
+            service: "",
+            version: "",
+            metrics_port: 0,
+            metrics_addr: "0.0.0.0",
         }
     }
 
@@ -58,7 +56,7 @@ impl Bot {
     where
         C: Command,
     {
-        let _span = tracing::info_span!("app", service = self.config.service).entered();
+        let _span = tracing::info_span!("app", service = self.service).entered();
 
         // A revoked/invalid token must fail fast instead of polling
         // silently into the void.
@@ -67,11 +65,7 @@ impl Bot {
             .get_me()
             .await
             .map_err(|e| Error::GetMe(e.to_string()))?;
-        tracing::info!(
-            "{} started (telegram: @{})",
-            self.config.service,
-            me.username()
-        );
+        tracing::info!("{} started (telegram: @{})", self.service, me.username());
 
         // Register the Telegram menu from the derived command spec. A
         // failure only costs the `/` autocomplete menu, so warn instead of
@@ -88,9 +82,9 @@ impl Bot {
             tracing::warn!("failed to register the command menu: {e}");
         }
 
-        let metrics = Metrics::new(self.config.service, self.config.version);
-        let port = self.config.metrics_port;
-        let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
+        let metrics = Metrics::new(self.service, self.version);
+        let port = self.metrics_port;
+        let listener = tokio::net::TcpListener::bind((self.metrics_addr, port))
             .await
             .map_err(|source| Error::Bind { port, source })?;
         Server::serve(listener, metrics.clone());
@@ -190,6 +184,68 @@ impl Bot {
         {
             tokio::signal::ctrl_c().await
         }
+    }
+}
+
+/// Builder for [`Bot`].
+#[derive(Debug, Clone)]
+pub struct BotBuilder {
+    token: Option<String>,
+    service: &'static str,
+    version: &'static str,
+    metrics_port: u16,
+    metrics_addr: &'static str,
+}
+
+impl BotBuilder {
+    /// The Telegram bot token.
+    pub fn token(mut self, token: impl Into<String>) -> Self {
+        self.token = Some(token.into());
+        self
+    }
+
+    /// The service name, used in logs and metrics.
+    pub fn service(mut self, service: &'static str) -> Self {
+        self.service = service;
+        self
+    }
+
+    /// The service version, reported in metrics.
+    pub fn version(mut self, version: &'static str) -> Self {
+        self.version = version;
+        self
+    }
+
+    /// The port the metrics server binds.
+    pub fn metrics_port(mut self, port: u16) -> Self {
+        self.metrics_port = port;
+        self
+    }
+
+    /// The address the metrics server binds (default `0.0.0.0`).
+    pub fn metrics_addr(mut self, addr: &'static str) -> Self {
+        self.metrics_addr = addr;
+        self
+    }
+
+    /// Assemble the bot, failing if no token was provided.
+    pub fn build(self) -> Result<Bot, Error> {
+        let token = self.token.ok_or(Error::MissingToken)?;
+        Ok(Bot {
+            api: Api::new(token),
+            service: self.service,
+            version: self.version,
+            metrics_port: self.metrics_port,
+            metrics_addr: self.metrics_addr,
+        })
+    }
+
+    /// Build and run the poller.
+    pub async fn run<C>(self, ctx: C::Ctx) -> Result<(), Error>
+    where
+        C: Command,
+    {
+        self.build()?.run::<C>(ctx).await
     }
 }
 

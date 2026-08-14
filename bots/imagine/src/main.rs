@@ -10,7 +10,7 @@ use crate::{config::Config, generator::Generator};
 async fn main() -> anyhow::Result<()> {
     // Load this bot's own .env (gitignored, per machine) regardless of CWD.
     dotenvy::from_path(concat!(env!("CARGO_MANIFEST_DIR"), "/.env")).ok();
-    botkit::Telemetry::init("imagine");
+    botkit::Telemetry::init(env!("CARGO_PKG_NAME"));
 
     let config = Config::from_env()?;
     let generator =
@@ -18,14 +18,12 @@ async fn main() -> anyhow::Result<()> {
     let storage = Storage::open(&config.db_path).await?;
     let ctx = commands::Ctx { generator, storage };
 
-    let bot = botkit::Bot::new(
-        config.telegram_bot_token,
-        botkit::AppConfig {
-            service: "imagine",
-            version: env!("CARGO_PKG_VERSION"),
-            metrics_port: config.metrics_port,
-        },
-    );
-    bot.run::<commands::Command>(ctx).await?;
+    botkit::Bot::builder()
+        .token(config.telegram_bot_token)
+        .service(env!("CARGO_PKG_NAME"))
+        .version(env!("CARGO_PKG_VERSION"))
+        .metrics_port(config.metrics_port)
+        .run::<commands::Command>(ctx)
+        .await?;
     Ok(())
 }
