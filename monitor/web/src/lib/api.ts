@@ -14,6 +14,8 @@ export type BotStatus = {
   jobs_active: number;
   jobs_failed_total: number;
   panics_total: number;
+  /// Per-command counters (present once botkit exposes them).
+  commands?: Record<string, { total: number; errors: number }>;
 };
 
 export type BotSnapshot = {
@@ -36,6 +38,7 @@ export type BotDetail = {
   panics: { ts: number; value: number | null }[];
   commands: { ts: number; value: number | null }[];
   dispatchErrors: { ts: number; value: number | null }[];
+  commandBreakdown: { name: string; total: number; errors: number }[];
   restarts: { ts: number }[];
   deploys: { ts: number; from: string; to: string }[];
   errors: { ts: number; end: number; message: string }[];

@@ -93,6 +93,33 @@ function deltas(
   return downsample(rows, 400);
 }
 
+/// Reduce per-command counter maps into a window breakdown (delta between
+/// the first and last observation of each command), most-used first.
+function summarizeCommands(
+  sorted: BotSnapshot[],
+): { name: string; total: number; errors: number }[] {
+  const first = new Map<string, { total: number; errors: number }>();
+  const last = new Map<string, { total: number; errors: number }>();
+  for (const snap of sorted) {
+    const commands = snap.status?.commands;
+    if (!commands) continue;
+    for (const [name, stats] of Object.entries(commands)) {
+      if (!first.has(name)) first.set(name, { total: stats.total, errors: stats.errors });
+      last.set(name, { total: stats.total, errors: stats.errors });
+    }
+  }
+  return [...first.entries()]
+    .map(([name, value]) => {
+      const final = last.get(name) ?? value;
+      return {
+        name,
+        total: Math.max(0, final.total - value.total),
+        errors: Math.max(0, final.errors - value.errors),
+      };
+    })
+    .toSorted((a, b) => b.total - a.total);
+}
+
 /// Reduce raw history into the detail view's chart and log payloads.
 export function buildBotDetail(
   hours: number,
@@ -117,6 +144,7 @@ export function buildBotDetail(
 
   const commands = deltas(sorted, (s) => s.commands_total);
   const dispatchErrors = deltas(sorted, (s) => s.dispatch_errors_total);
+  const commandBreakdown = summarizeCommands(sorted);
 
   const restarts: { ts: number }[] = [];
   let prevUptime: number | null = null;
@@ -167,6 +195,7 @@ export function buildBotDetail(
     panics,
     commands,
     dispatchErrors,
+    commandBreakdown,
     restarts,
     deploys,
     errors,

@@ -43,6 +43,7 @@ function emptyDetail(name: string, hours: number): BotDetail {
     panics: [],
     commands: [],
     dispatchErrors: [],
+    commandBreakdown: [],
     restarts: [],
     deploys: [],
     errors: [],
@@ -214,7 +215,7 @@ function BotDetailPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Restarts</CardTitle>
@@ -250,6 +251,34 @@ function BotDetailPage() {
                     <span className="tabular-nums">{fmtStamp(d.ts)}</span>
                     <span className="text-muted-foreground">
                       {d.from} → {d.to}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Command breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.commandBreakdown.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No commands in this window.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {data.commandBreakdown.map((c) => (
+                  <li key={c.name} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-mono">/{c.name}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {c.total}
+                      {c.errors > 0 && (
+                        <span className="text-destructive">
+                          {" "}
+                          · {c.errors} error{c.errors === 1 ? "" : "s"}
+                        </span>
+                      )}
                     </span>
                   </li>
                 ))}
