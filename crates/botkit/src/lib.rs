@@ -89,16 +89,17 @@
 //! authors them. botkit's own startup failures are the typed [`Error`].
 
 mod bot;
-pub mod command;
-pub mod config;
-pub mod error;
+mod command;
+mod config;
+mod dispatch;
+mod error;
 mod health;
 mod inline;
 mod metrics;
 mod reply;
-pub mod request;
+mod request;
 mod router;
-pub mod telemetry;
+mod telemetry;
 
 pub use async_trait::async_trait;
 pub use bot::{Bot, BotBuilder};

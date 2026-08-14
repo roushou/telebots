@@ -11,8 +11,9 @@ use teloxide::{
 
 use crate::{
     command::{Command, MenuEntry},
+    dispatch::{Supervisor, dispatch},
     inline::{InlineHandler, InlineRequest},
-    reply::{BoxFuture, Supervisor, dispatch},
+    reply::BoxFuture,
     request::Request,
 };
 

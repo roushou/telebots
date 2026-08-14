@@ -13,7 +13,7 @@ use teloxide::{
     types::BotCommand,
 };
 
-use crate::{error::Error, health::Server, metrics::Metrics, reply::Supervisor, router::Router};
+use crate::{dispatch::Supervisor, error::Error, health::Server, metrics::Metrics, router::Router};
 
 /// How long shutdown waits for in-flight background jobs.
 const DRAIN_GRACE: Duration = Duration::from_secs(15);
