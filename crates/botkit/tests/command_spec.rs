@@ -27,6 +27,15 @@ fn help_lists_visible_commands() {
 }
 
 #[test]
+fn name_reports_the_command_name() {
+    assert_eq!(TestCommand::Hi.name(), "hi");
+    assert_eq!(TestCommand::Echo("x".into()).name(), "echo");
+    assert_eq!(TestCommand::Ping.name(), "ping");
+    assert_eq!(TestCommand::Renamed.name(), "renamed");
+    assert_eq!(TestCommand::Secret.name(), "secret");
+}
+
+#[test]
 fn parse_matches_command_and_arguments() {
     assert_eq!(TestCommand::parse("/hi", "bot"), Some(TestCommand::Hi));
     assert_eq!(

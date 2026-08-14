@@ -219,15 +219,13 @@ where
             .await
         }
         Ok(None) => {
-            dispatch(
-                &bot,
-                chat,
-                reply_to,
-                user_id,
-                &supervisor,
-                cmd.reply(&ctx, &req),
-            )
-            .await
+            let name = cmd.name();
+            supervisor.note_command_named(name);
+            let result = cmd.reply(&ctx, &req).await;
+            if result.is_err() {
+                supervisor.note_command_error(name);
+            }
+            dispatch(&bot, chat, reply_to, user_id, &supervisor, async { result }).await
         }
         Err(e) => dispatch(&bot, chat, reply_to, user_id, &supervisor, async { Err(e) }).await,
     }

@@ -42,6 +42,16 @@ impl Supervisor {
         }
     }
 
+    /// Record one execution of the named command.
+    pub(crate) fn note_command_named(&self, name: &'static str) {
+        self.metrics.note_command_named(name);
+    }
+
+    /// Record one failed execution of the named command.
+    pub(crate) fn note_command_error(&self, name: &'static str) {
+        self.metrics.note_command_error(name);
+    }
+
     /// Run `job` in the background; deliver its reply (or a uniform error)
     /// and clean up the placeholder.
     pub(crate) async fn spawn<M: Messenger>(

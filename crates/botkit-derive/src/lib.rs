@@ -52,6 +52,8 @@ struct Variant {
     description: String,
     /// The `Self::Variant(...)` constructor (arguments parsed from `args`).
     constructor: TokenStream2,
+    /// Match arm mapping the variant to its bare command name.
+    name_arm: TokenStream2,
     /// Hidden from `/help` and the menu, but still parseable.
     hide: bool,
 }
@@ -112,12 +114,14 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
             )?,
         };
 
+        let name_arm = name_arm(variant, &name);
         variants.push(Variant {
             prefixed: format!("{prefix}{name}"),
             name,
             aliases: attrs.aliases,
             description: attrs.description.unwrap_or_default(),
             constructor: constructor(variant)?,
+            name_arm,
             hide: attrs.hide,
         });
     }
@@ -139,6 +143,7 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
 
     let prefixed_matches = variants.iter().map(|v| &v.prefixed);
     let constructors = variants.iter().map(|v| &v.constructor);
+    let name_arms = variants.iter().map(|v| &v.name_arm);
     let alias_arms = variants.iter().filter(|v| !v.aliases.is_empty()).map(|v| {
         let aliases = v.aliases.iter().map(|alias| format!("{prefix}{alias}"));
         let constructor = &v.constructor;
@@ -155,6 +160,12 @@ fn expand(input: DeriveInput) -> syn::Result<TokenStream2> {
 
             fn menu() -> ::std::vec::Vec<::botkit::MenuEntry> {
                 ::std::vec![#(#menu_entries),*]
+            }
+
+            fn name(&self) -> &'static str {
+                match self {
+                    #(#name_arms)*
+                }
             }
 
             fn parse(s: &str, bot_name: &str) -> ::std::option::Option<Self> {
@@ -257,6 +268,16 @@ fn constructor(variant: &syn::Variant) -> syn::Result<TokenStream2> {
             variant,
             "`CommandSpec` does not support named fields",
         )),
+    }
+}
+
+/// The match arm for `CommandSpec::name`: `Self::Variant => "name"`.
+fn name_arm(variant: &syn::Variant, command_name: &str) -> TokenStream2 {
+    let ident = &variant.ident;
+    match &variant.fields {
+        Fields::Unit => quote! { Self::#ident => #command_name, },
+        Fields::Unnamed(_) => quote! { Self::#ident(_) => #command_name, },
+        Fields::Named(_) => quote! { Self::#ident { .. } => #command_name, },
     }
 }
 

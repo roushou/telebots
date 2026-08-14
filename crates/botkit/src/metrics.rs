@@ -2,8 +2,9 @@
 //! endpoint and the monitor.
 
 use std::{
+    collections::HashMap,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering},
     },
     time::{Instant, SystemTime, UNIX_EPOCH},
@@ -14,6 +15,13 @@ use serde::Serialize;
 /// How old a successful heartbeat may be before the bot is considered
 /// dead (3× the 60s heartbeat interval).
 const STALE_AFTER_SECS: i64 = 180;
+
+/// Per-command counters.
+#[derive(Serialize)]
+pub struct CommandHealth {
+    pub total: u64,
+    pub errors: u64,
+}
 
 /// A point-in-time status snapshot, serialized for `/healthz` and
 /// `/metrics`.
@@ -30,6 +38,14 @@ pub struct Health {
     pub jobs_active: usize,
     pub jobs_failed_total: u64,
     pub panics_total: u64,
+    pub commands: HashMap<&'static str, CommandHealth>,
+}
+
+/// Per-command counters, keyed by command name.
+#[derive(Default)]
+struct CommandStats {
+    total: AtomicU64,
+    errors: AtomicU64,
 }
 
 /// Shared runtime metrics for one bot process.
@@ -46,6 +62,7 @@ pub struct Metrics {
     jobs_active: Arc<AtomicUsize>,
     jobs_failed: Arc<AtomicU64>,
     panics: Arc<AtomicU64>,
+    commands: Arc<Mutex<HashMap<&'static str, CommandStats>>>,
 }
 
 impl Metrics {
@@ -63,6 +80,7 @@ impl Metrics {
             jobs_active: Arc::new(AtomicUsize::new(0)),
             jobs_failed: Arc::new(AtomicU64::new(0)),
             panics: Arc::new(AtomicU64::new(0)),
+            commands: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -83,6 +101,28 @@ impl Metrics {
     pub fn note_command(&self) {
         self.last_command.store(Self::now_unix(), Ordering::Relaxed);
         self.commands_total.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record one execution of the named command.
+    pub fn note_command_named(&self, name: &'static str) {
+        self.commands
+            .lock()
+            .unwrap()
+            .entry(name)
+            .or_default()
+            .total
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record one failed execution of the named command.
+    pub fn note_command_error(&self, name: &'static str) {
+        self.commands
+            .lock()
+            .unwrap()
+            .entry(name)
+            .or_default()
+            .errors
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     /// A command failed to be delivered (the dispatcher's error handler
@@ -113,6 +153,21 @@ impl Metrics {
     pub fn health(&self) -> Health {
         let now = Self::now_unix();
         let ago = |t: i64| Some((now - t).max(0));
+        let commands = self
+            .commands
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(name, stats)| {
+                (
+                    *name,
+                    CommandHealth {
+                        total: stats.total.load(Ordering::Relaxed),
+                        errors: stats.errors.load(Ordering::Relaxed),
+                    },
+                )
+            })
+            .collect();
         Health {
             service: self.service,
             version: self.version,
@@ -129,6 +184,7 @@ impl Metrics {
             jobs_active: self.jobs_active.load(Ordering::Relaxed),
             jobs_failed_total: self.jobs_failed.load(Ordering::Relaxed),
             panics_total: self.panics.load(Ordering::Relaxed),
+            commands,
         }
     }
 
@@ -185,5 +241,19 @@ mod tests {
         assert_eq!(h.jobs_failed_total, 1);
         m.note_panic();
         assert_eq!(m.health().panics_total, 1);
+    }
+
+    #[test]
+    fn per_command_counters_track_executions_and_errors() {
+        let m = Metrics::new("test", "0.1.0");
+        m.note_command_named("price");
+        m.note_command_named("price");
+        m.note_command_named("info");
+        m.note_command_error("price");
+        let h = m.health();
+        assert_eq!(h.commands["price"].total, 2);
+        assert_eq!(h.commands["price"].errors, 1);
+        assert_eq!(h.commands["info"].total, 1);
+        assert_eq!(h.commands["info"].errors, 0);
     }
 }

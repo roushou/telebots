@@ -34,6 +34,9 @@ pub trait CommandSpec: Sized {
     /// Parse a message text into a command, or `None` if it is not one of
     /// ours. `bot_name` disambiguates `@botname` mentions in groups.
     fn parse(text: &str, bot_name: &str) -> Option<Self>;
+
+    /// The bare command name of this variant (e.g. `"price"`).
+    fn name(&self) -> &'static str;
 }
 
 /// The behavior a bot implements: its context plus one reply method.
