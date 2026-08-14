@@ -74,6 +74,25 @@ function downsample<T>(rows: T[], max: number): T[] {
   return out;
 }
 
+/// Per-poll delta of a monotonically increasing counter, clamped so a
+/// process restart (counter reset) reads as zero rather than negative.
+function deltas(
+  sorted: BotSnapshot[],
+  pick: (status: NonNullable<BotSnapshot["status"]>) => number | undefined,
+): { ts: number; value: number | null }[] {
+  let prev: number | null = null;
+  const rows: { ts: number; value: number | null }[] = [];
+  for (const snap of sorted) {
+    const total = snap.status ? pick(snap.status) : undefined;
+    rows.push({
+      ts: snap.ts,
+      value: total !== undefined && prev !== null ? Math.max(0, total - prev) : null,
+    });
+    prev = total ?? null;
+  }
+  return downsample(rows, 400);
+}
+
 /// Reduce raw history into the detail view's chart and log payloads.
 export function buildBotDetail(
   hours: number,
@@ -95,6 +114,9 @@ export function buildBotDetail(
     sorted.map((s) => ({ ts: s.ts, value: s.status?.panics_total ?? null })),
     400,
   );
+
+  const commands = deltas(sorted, (s) => s.commands_total);
+  const dispatchErrors = deltas(sorted, (s) => s.dispatch_errors_total);
 
   const restarts: { ts: number }[] = [];
   let prevUptime: number | null = null;
@@ -143,6 +165,8 @@ export function buildBotDetail(
     segments: toSegments(history),
     jobs,
     panics,
+    commands,
+    dispatchErrors,
     restarts,
     deploys,
     errors,

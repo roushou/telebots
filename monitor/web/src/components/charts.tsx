@@ -132,13 +132,18 @@ export function JobsChart({
   );
 }
 
-export function PanicsChart({
+/// A single-series area/line chart for a counter (panics, commands, ...).
+export function CounterChart({
   points,
+  color,
   height,
+  ariaLabel,
   className,
 }: {
   points: { ts: number; value: number | null }[];
+  color: string;
   height: number;
+  ariaLabel: string;
   className?: string;
 }) {
   const definition = useMemo(() => {
@@ -151,13 +156,13 @@ export function PanicsChart({
         areaY(rows, {
           x: "date",
           y: "value",
-          fill: "var(--ts-chart-3)",
+          fill: color,
           fillOpacity: 0.16,
         }),
         lineY(rows, {
           x: "date",
           y: "value",
-          stroke: "var(--ts-chart-3)",
+          stroke: color,
           strokeWidth: 2,
         }),
       ],
@@ -165,14 +170,14 @@ export function PanicsChart({
       y: { scale: scaleLinear, nice: true, grid: true },
       tooltip,
     });
-  }, [points]);
+  }, [points, color]);
 
   return (
     <Chart
       definition={definition}
       height={height}
       initialWidth={640}
-      ariaLabel="Panics over time"
+      ariaLabel={ariaLabel}
       className={className}
     />
   );

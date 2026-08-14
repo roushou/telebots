@@ -34,6 +34,8 @@ export type BotDetail = {
   segments: HealthSegment[];
   jobs: { ts: number; active: number | null; failed: number | null }[];
   panics: { ts: number; value: number | null }[];
+  commands: { ts: number; value: number | null }[];
+  dispatchErrors: { ts: number; value: number | null }[];
   restarts: { ts: number }[];
   deploys: { ts: number; from: string; to: string }[];
   errors: { ts: number; end: number; message: string }[];

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { AvailabilityBand, JobsChart, PanicsChart } from "../../../components/charts";
+import { AvailabilityBand, CounterChart, JobsChart } from "../../../components/charts";
 import { StatCard } from "../../../components/stat-card";
 import { StatusBadge } from "../../../components/status-badge";
 import { Button } from "../../../components/ui/button";
@@ -41,6 +41,8 @@ function emptyDetail(name: string, hours: number): BotDetail {
     segments: [],
     jobs: [],
     panics: [],
+    commands: [],
+    dispatchErrors: [],
     restarts: [],
     deploys: [],
     errors: [],
@@ -173,7 +175,41 @@ function BotDetailPage() {
             <CardTitle className="text-base font-semibold">Panics</CardTitle>
           </CardHeader>
           <CardContent>
-            <PanicsChart points={data.panics} height={200} />
+            <CounterChart
+              points={data.panics}
+              color="var(--ts-chart-3)"
+              height={200}
+              ariaLabel="Panics over time"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Commands</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CounterChart
+              points={data.commands}
+              color="var(--ts-chart-1)"
+              height={200}
+              ariaLabel="Commands per poll over time"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">commands per 30s poll</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Dispatch errors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CounterChart
+              points={data.dispatchErrors}
+              color="var(--ts-chart-5)"
+              height={200}
+              ariaLabel="Dispatch errors per poll over time"
+            />
           </CardContent>
         </Card>
       </div>
