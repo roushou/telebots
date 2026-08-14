@@ -33,7 +33,9 @@ crates/coinmarketcap/ CMC client: standalone crate — lib.rs (re-exports),
                       error.rs (typed Error); no Telebots dependencies
 crates/coingecko/     CoinGecko client: same lib/client/types/error shape
 crates/cloudflare-ai/ Cloudflare Workers AI client: same shape
-crates/storage/       reusable SQLite storage (async kv + record log)
+crates/storage/       reusable SQLite storage: connection, versioned
+                      migrations, and a generic execute/query API;
+                      consumers define their own tables + accessors
 monitor/              admin dashboard: polls each bot's /metrics (JSON),
                       keeps snapshots in SQLite, serves a TanStack Start
                       dashboard (shadcn/ui + TanStack Charts) on
@@ -82,9 +84,10 @@ goes in `crates/`.
   `env_file`. **Never commit real secrets** — update the example when adding
   a variable.
 - **Persistence**: all state lives in SQLite via `crates/storage` — never
-  in-memory. Bots open their own database (`Storage::open(path)`); the
-  Imagine bot persists cooldowns (kv) and generation history (record log,
-  storing a downscaled JPEG copy per image, not the full PNG).
+  in-memory. `storage` provides the connection, versioned migrations, and a
+  generic `execute`/`query` API; each bot defines its own tables and typed
+  accessors (imagine: `cooldowns` + `generations`, storing a downscaled JPEG
+  copy per image, not the full PNG).
 - **Rust**: nightly pinned in `rust-toolchain.toml`, edition 2024, rustfmt
   via `rustfmt.toml`.
 - **Error handling**: library crates (`crates/*`) expose typed `thiserror`

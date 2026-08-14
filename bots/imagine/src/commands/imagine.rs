@@ -96,16 +96,17 @@ impl ImagineArgs {
                             None
                         }
                     };
-                    let record = storage::Record {
-                        id: None,
-                        chat_id: job.chat_id,
-                        user_id: job.user_id,
-                        kind: "image".to_string(),
-                        text: Some(prompt.clone()),
-                        payload,
-                        created_at: None,
-                    };
-                    if let Err(e) = ctx.storage.append(record).await {
+                    if let Err(e) = ctx
+                        .storage
+                        .add_generation(
+                            job.chat_id,
+                            job.user_id,
+                            &prompt,
+                            &model.to_string(),
+                            payload.as_deref(),
+                        )
+                        .await
+                    {
                         tracing::warn!("failed to record history: {e:#}");
                     }
                     Ok(Reply::photo(

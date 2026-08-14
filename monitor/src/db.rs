@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Result;
 use serde_json::Value;
-use storage::{Storage, rusqlite::types::Value as SqlValue};
+use storage::{Migration, Storage, rusqlite::types::Value as SqlValue};
 
 /// One status snapshot for a bot.
 #[derive(Debug, Clone)]
@@ -31,6 +31,11 @@ const SNAPSHOTS_DDL: &str = "
     CREATE INDEX IF NOT EXISTS idx_snapshots_bot_ts
         ON snapshots (bot, ts);";
 
+const MIGRATIONS: &[Migration] = &[Migration {
+    version: 1,
+    sql: SNAPSHOTS_DDL,
+}];
+
 /// Snapshot store; cheap to clone, one connection.
 #[derive(Clone)]
 pub struct Db {
@@ -38,12 +43,12 @@ pub struct Db {
 }
 
 impl Db {
-    /// Open (creating if missing) the database at `path` and ensure the
-    /// snapshots schema exists.
+    /// Open (creating if missing) the database at `path` and migrate the
+    /// snapshots schema.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref().to_owned();
         let storage = Storage::open(&path).await?;
-        storage.execute_batch(SNAPSHOTS_DDL).await?;
+        storage.migrate(MIGRATIONS).await?;
         Ok(Self { storage })
     }
 

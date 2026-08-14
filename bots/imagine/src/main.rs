@@ -2,10 +2,9 @@ mod commands;
 mod config;
 mod cooldown;
 mod generator;
+mod store;
 
-use storage::Storage;
-
-use crate::{config::Config, generator::Generator};
+use crate::{config::Config, generator::Generator, store::Store};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
         config.cloudflare_account_id.into_inner(),
         config.cloudflare_api_token.into_inner(),
     )?;
-    let storage = Storage::open(&config.db_path).await?;
+    let storage = Store::open(&config.db_path).await?;
     let ctx = commands::Ctx { generator, storage };
     let router = botkit::Router::new(ctx)
         .guarded_command::<commands::Command, cooldown::Cooldown>(cooldown::Cooldown)

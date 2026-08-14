@@ -14,17 +14,24 @@ pub struct History;
 impl History {
     /// Produce the reply: a text block listing recent generations.
     pub async fn reply(&self, ctx: &Ctx, chat_id: i64) -> Result<Reply> {
-        let records = ctx.storage.recent(chat_id, "image", HISTORY_LIMIT).await?;
+        let generations = ctx
+            .storage
+            .recent_generations(chat_id, HISTORY_LIMIT)
+            .await?;
 
         let mut b = Block::new();
-        if records.is_empty() {
+        if generations.is_empty() {
             b.line("No images yet — try /imagine <prompt>");
         } else {
-            b.line(format!("🎨 Your recent generations ({}):", records.len()));
-            for record in &records {
-                let prompt = record.text.as_deref().unwrap_or("?");
-                let id = record.id.unwrap_or(0);
-                b.line(format!("{id}. {prompt}"));
+            b.line(format!(
+                "🎨 Your recent generations ({}):",
+                generations.len()
+            ));
+            for generation in &generations {
+                b.line(format!(
+                    "{}. {} · {}",
+                    generation.id, generation.prompt, generation.model
+                ));
             }
         }
         Ok(Reply::text(b))
@@ -33,15 +40,13 @@ impl History {
 
 #[cfg(test)]
 mod tests {
-    use storage::{Record, Storage};
-
     use super::*;
-    use crate::{commands::Ctx, generator::Generator};
+    use crate::{commands::Ctx, generator::Generator, store::Store};
 
     async fn ctx() -> anyhow::Result<Ctx> {
         Ok(Ctx {
             generator: Generator::cloudflare("acct".into(), "tok".into())?,
-            storage: Storage::open(":memory:").await?,
+            storage: Store::open(":memory:").await?,
         })
     }
 
@@ -61,15 +66,7 @@ mod tests {
         let ctx = ctx().await?;
         for prompt in ["a cat", "a dog"] {
             ctx.storage
-                .append(Record {
-                    id: None,
-                    chat_id: 1,
-                    user_id: Some(42),
-                    kind: "image".to_string(),
-                    text: Some(prompt.into()),
-                    payload: None,
-                    created_at: None,
-                })
+                .add_generation(1, Some(42), prompt, "flux-1-schnell", None)
                 .await?;
         }
         let outcome = History.reply(&ctx, 1).await?;

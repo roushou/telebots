@@ -1,25 +1,20 @@
 //! Reusable SQLite storage for Telebots bots.
 //!
-//! A bot plugs in its own database file and gets a small async API over a
-//! single connection: a persistent key-value store (settings, cooldowns,
-//! counters) and an append-only record log (history of user actions).
-//!
-//! Organized by concern: [`kv`] and [`records`] provide the two stores;
-//! [`Storage`] owns the connection. Queries run on a blocking thread; the
-//! API is fully async.
+//! A bot opens its own database file and gets a small async API over a
+//! single connection: the generic `execute`/`query` interface plus versioned
+//! schema migrations. Consumers define their own tables and typed accessors
+//! on top; this crate owns the connection and the migration runner.
 
 mod error;
-mod kv;
 mod migrations;
-mod records;
 mod sql;
 
 use std::{path::Path, sync::Arc};
 
 pub use error::Error;
-pub use records::Record;
-pub use rusqlite;
+pub use migrations::Migration;
 use rusqlite::Connection;
+pub use rusqlite::{self, types::Value};
 use tokio::sync::Mutex;
 
 /// A SQLite-backed store. Cheap to clone; all instances share one connection.
@@ -29,8 +24,8 @@ pub struct Storage {
 }
 
 impl Storage {
-    /// Open (creating if missing) the database at `path` and ensure the
-    /// schema exists. Pass `:memory:` for an in-memory database.
+    /// Open (creating if missing) the database at `path` and configure the
+    /// connection. Pass `:memory:` for an in-memory database.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
         let path = path.as_ref().to_owned();
         tokio::task::spawn_blocking(move || {
@@ -38,12 +33,19 @@ impl Storage {
                 path: path.clone(),
                 source,
             })?;
-            migrations::migrate(&conn)?;
+            migrations::configure(&conn)?;
             Ok(Self {
                 inner: Arc::new(Mutex::new(conn)),
             })
         })
         .await?
+    }
+
+    /// Apply any migrations newer than the current schema version, in order.
+    pub async fn migrate(&self, migrations: &[Migration]) -> Result<(), Error> {
+        let migrations = migrations.to_vec();
+        self.with_conn(move |conn| migrations::run(conn, &migrations))
+            .await
     }
 
     /// Run `f` against the connection on a blocking thread.

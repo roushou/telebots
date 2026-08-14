@@ -25,11 +25,8 @@ impl Guard<Command, Ctx> for Cooldown {
             return Ok(None);
         };
 
-        let key = format!("cooldown:{}:{}", req.chat_id, user_id);
         let now = Self::now_secs();
-        if let Some(raw) = ctx.storage.kv_get(&key).await?
-            && let Ok(text) = String::from_utf8(raw)
-            && let Ok(last) = text.parse::<i64>()
+        if let Some(last) = ctx.storage.cooldown(req.chat_id, user_id).await?
             && now - last < COOLDOWN_SECS
         {
             let wait = COOLDOWN_SECS - (now - last);
@@ -40,7 +37,7 @@ impl Guard<Command, Ctx> for Cooldown {
             return Ok(Some(Reply::text(block)));
         }
 
-        ctx.storage.kv_set(&key, now.to_string().as_bytes()).await?;
+        ctx.storage.set_cooldown(req.chat_id, user_id, now).await?;
         Ok(None)
     }
 }
@@ -56,15 +53,13 @@ impl Cooldown {
 
 #[cfg(test)]
 mod tests {
-    use storage::Storage;
-
     use super::*;
-    use crate::{commands::Ctx, generator::Generator};
+    use crate::{commands::Ctx, generator::Generator, store::Store};
 
     async fn ctx() -> anyhow::Result<Ctx> {
         Ok(Ctx {
             generator: Generator::cloudflare("acct".into(), "tok".into())?,
-            storage: Storage::open(":memory:").await?,
+            storage: Store::open(":memory:").await?,
         })
     }
 
