@@ -46,9 +46,14 @@ pub enum Reply {
         caption: Option<String>,
     },
 
+    /// Edit the acknowledgement placeholder in place (background jobs
+    /// only). In the direct path there is nothing to edit, so it falls back
+    /// to a normal text message.
+    Edit(Block),
+
     /// Acknowledge with `placeholder`, run `job` in the background under
-    /// supervision, then send its reply (or a uniform `⚠️` error).
-    Background { placeholder: &'static str, job: Job },
+    /// supervision, then deliver its reply (or a uniform `⚠️` error).
+    Background { placeholder: String, job: Job },
 }
 
 impl Reply {
@@ -200,6 +205,21 @@ impl Supervisor {
     /// Deliver the job's outcome; the placeholder is always cleaned up.
     async fn deliver(bot: &Bot, msg: &Message, placeholder: &Message, outcome: Result<Reply>) {
         match outcome {
+            Ok(Reply::Edit(block)) => {
+                // The edit replaces the placeholder, so there is nothing
+                // left to delete.
+                if let Err(e) = bot
+                    .edit_message_text(
+                        placeholder.chat.id,
+                        placeholder.id,
+                        block.truncate(MAX_MESSAGE_LEN).build(),
+                    )
+                    .await
+                {
+                    tracing::warn!("failed to edit placeholder: {e}");
+                }
+                return;
+            }
             Ok(Reply::Text(block)) => {
                 if let Err(e) = bot
                     .send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
@@ -248,6 +268,11 @@ where
         }
         Ok(Reply::Photo { bytes, caption }) => {
             Reply::send_photo(bot, msg, bytes, caption).await?;
+        }
+        Ok(Reply::Edit(block)) => {
+            // Nothing to edit in the direct path; fall back to a message.
+            bot.send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
+                .await?;
         }
         Ok(Reply::Background { placeholder, job }) => {
             let placeholder = bot.send_message(msg.chat.id, placeholder).await?;

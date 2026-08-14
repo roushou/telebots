@@ -95,7 +95,7 @@ impl ImagineArgs {
         let prompt = self.prompt.clone();
         let model = self.model;
         Ok(Reply::Background {
-            placeholder: self.placeholder(),
+            placeholder: self.placeholder().to_string(),
             job: Job::new(JOB_TIMEOUT, move |job| {
                 Box::pin(async move {
                     let started = Instant::now();
