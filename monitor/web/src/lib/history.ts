@@ -6,6 +6,16 @@ export const POLL_INTERVAL_SECS = 30;
 
 export type HealthSegment = { start: number; end: number; status: Health };
 
+/// Aggregated health over a window.
+export type HealthSummary = {
+  /// Percentage of the window fully up.
+  uptimePct: number;
+  /// Seconds not fully up (degraded + down).
+  downtimeSecs: number;
+  /// Longest contiguous outage (degraded or down), in seconds.
+  longestOutageSecs: number;
+};
+
 /// Snapshots needed to cover `hours` at the poll cadence.
 export function hoursToLimit(hours: number): number {
   return Math.ceil((hours * 3600) / POLL_INTERVAL_SECS);
@@ -27,6 +37,31 @@ export function toSegments(history: BotSnapshot[]): HealthSegment[] {
     }
   }
   return segments;
+}
+
+/// Aggregate a window's segments into an uptime/downtime summary.
+export function summarizeHealth(segments: HealthSegment[]): HealthSummary {
+  let ok = 0;
+  let notOk = 0;
+  let longest = 0;
+  let run = 0;
+  for (const s of segments) {
+    const dur = s.end - s.start;
+    if (s.status === "ok") {
+      ok += dur;
+      run = 0;
+    } else {
+      notOk += dur;
+      run += dur;
+      longest = Math.max(longest, run);
+    }
+  }
+  const total = ok + notOk;
+  return {
+    uptimePct: total === 0 ? 100 : (ok / total) * 100,
+    downtimeSecs: notOk,
+    longestOutageSecs: longest,
+  };
 }
 
 function downsample<T>(rows: T[], max: number): T[] {

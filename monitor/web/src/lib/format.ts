@@ -26,6 +26,11 @@ export function fmtDuration(secs: number): string {
   return `${h}h ${min % 60}m`;
 }
 
+/// A percentage, with more precision when near 100%.
+export function fmtPct(value: number): string {
+  return `${value.toFixed(value >= 99.9 ? 2 : 1)}%`;
+}
+
 /// Compact "HH:MM" for chart ticks. Accepts epoch seconds or ms.
 export function fmtClock(ts: number): string {
   const ms = ts < 1e12 ? ts * 1000 : ts;

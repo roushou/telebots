@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 
 import type { BotSnapshot } from "../lib/api";
-import { fmtAgo, fmtUptime } from "../lib/format";
+import { fmtAgo, fmtDuration, fmtPct, fmtUptime } from "../lib/format";
 import { healthOf } from "../lib/health";
-import type { HealthSegment } from "../lib/history";
+import { summarizeHealth, type HealthSegment } from "../lib/history";
 import { cn } from "../lib/utils";
 import { AvailabilityBand } from "./charts";
 import { StatusBadge } from "./status-badge";
@@ -21,6 +21,7 @@ function Row({ label, value }: { label: string; value: string }) {
 export function BotCard({ bot, segments }: { bot: BotSnapshot; segments: HealthSegment[] }) {
   const { status, error } = bot;
   const health = healthOf(bot);
+  const summary = summarizeHealth(segments);
 
   return (
     <Card className="group transition-shadow hover:shadow-md">
@@ -36,6 +37,10 @@ export function BotCard({ bot, segments }: { bot: BotSnapshot; segments: HealthS
             <div className="space-y-1 text-sm">
               <Row label="version" value={status.version} />
               <Row label="uptime" value={fmtUptime(status.uptime_secs)} />
+              <Row
+                label="24h up"
+                value={`${fmtPct(summary.uptimePct)} · ${fmtDuration(summary.downtimeSecs)} down`}
+              />
               <Row label="last command" value={fmtAgo(status.last_command_ago_secs)} />
               <Row label="commands" value={String(status.commands_total)} />
               <Row

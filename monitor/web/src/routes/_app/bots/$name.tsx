@@ -8,8 +8,9 @@ import { StatusBadge } from "../../../components/status-badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { fetchBotDetail, type BotDetail } from "../../../lib/api";
-import { fmtDuration, fmtStamp, fmtUptime } from "../../../lib/format";
+import { fmtDuration, fmtPct, fmtStamp, fmtUptime } from "../../../lib/format";
 import { healthOf } from "../../../lib/health";
+import { summarizeHealth } from "../../../lib/history";
 
 const RANGES = [1, 6, 24] as const;
 
@@ -73,6 +74,7 @@ function BotDetailPage() {
   const { latest } = data;
   const status = latest.status;
   const health = healthOf(latest);
+  const summary = summarizeHealth(data.segments);
 
   return (
     <div className="space-y-6">
@@ -118,6 +120,11 @@ function BotDetailPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          label="Availability"
+          value={fmtPct(summary.uptimePct)}
+          hint={`${fmtDuration(summary.downtimeSecs)} down · longest ${fmtDuration(summary.longestOutageSecs)}`}
+        />
         <StatCard label="Uptime" value={status ? fmtUptime(status.uptime_secs) : "—"} />
         <StatCard label="Commands" value={status?.commands_total ?? "—"} />
         <StatCard label="Jobs active" value={status?.jobs_active ?? "—"} />
