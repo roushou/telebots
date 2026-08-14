@@ -57,18 +57,35 @@ function apiBase(): string {
   return process.env.MONITOR_API_URL ?? DEFAULT_API;
 }
 
+function isBotSnapshotArray(data: unknown): data is BotSnapshot[] {
+  if (!Array.isArray(data)) return false;
+  return data.every((item) => {
+    if (typeof item !== "object" || item === null) return false;
+    return (
+      "bot" in item && typeof item.bot === "string" && "ts" in item && typeof item.ts === "number"
+    );
+  });
+}
+
+function isMonitorStatus(data: unknown): data is MonitorStatus {
+  if (typeof data !== "object" || data === null) return false;
+  return "service" in data && typeof data.service === "string";
+}
+
 async function apiBots(base: string): Promise<BotSnapshot[]> {
   const resp = await fetch(`${base}/api/bots`);
   if (!resp.ok) throw new Error(`monitor api responded ${resp.status}`);
   const data: unknown = await resp.json();
-  return data as BotSnapshot[];
+  if (!isBotSnapshotArray(data)) throw new Error("monitor api returned an unexpected shape");
+  return data;
 }
 
 async function apiHistory(base: string, name: string, limit: number): Promise<BotSnapshot[]> {
   const resp = await fetch(`${base}/api/bots/${name}/history?limit=${limit}`);
   if (!resp.ok) throw new Error(`monitor api responded ${resp.status}`);
   const data: unknown = await resp.json();
-  return data as BotSnapshot[];
+  if (!isBotSnapshotArray(data)) throw new Error("monitor api returned an unexpected shape");
+  return data;
 }
 
 /// Newest snapshot per bot.
@@ -114,6 +131,7 @@ export const fetchMonitorStatus = createServerFn({ method: "GET" }).handler(
     const resp = await fetch(`${apiBase()}/metrics`);
     if (!resp.ok) throw new Error(`monitor metrics responded ${resp.status}`);
     const data: unknown = await resp.json();
-    return data as MonitorStatus;
+    if (!isMonitorStatus(data)) throw new Error("monitor metrics returned an unexpected shape");
+    return data;
   },
 );
