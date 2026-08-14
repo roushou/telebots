@@ -1,3 +1,4 @@
+mod callback;
 mod commands;
 mod config;
 mod inline;
@@ -20,7 +21,8 @@ async fn main() -> anyhow::Result<()> {
     let ctx = commands::Ctx { cmc, coingecko };
     let router = botkit::Router::new(ctx)
         .command::<commands::Command>()
-        .inline_query(inline::Inline);
+        .inline_query(inline::Inline)
+        .callback(callback::PriceRefresh);
 
     botkit::Bot::builder()
         .token(config.telegram_bot_token)

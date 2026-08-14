@@ -70,18 +70,27 @@ impl botkit::Command for Command {
     type Ctx = Ctx;
 
     /// Produce the reply. The match is thin and exhaustive; each variant
-    /// parses its arguments and delegates to the command object.
+    /// parses its arguments and delegates to the command object. `/price`
+    /// returns a reply with a keyboard; the rest are plain text.
     async fn reply(&self, ctx: &Ctx, _req: &botkit::Request) -> anyhow::Result<botkit::Reply> {
-        let block = match self {
+        match self {
             Command::Price(raw) => PriceArgs::parse(raw)?.reply(ctx).await,
-            Command::Convert(raw) => ConvertArgs::parse(raw)?.reply(ctx).await,
-            Command::Market => Market.reply(ctx).await,
-            Command::Compare(raw) => CompareArgs::parse(raw)?.reply(ctx).await,
-            Command::FearGreed => FearGreed.reply(ctx).await,
-            Command::Trending => Trending.reply(ctx).await,
-            Command::Info(raw) => InfoArgs::parse(raw)?.reply(ctx).await,
-            Command::Help => Help.reply().await,
-        }?;
-        Ok(botkit::Reply::text(block))
+            Command::Convert(raw) => ConvertArgs::parse(raw)?
+                .reply(ctx)
+                .await
+                .map(botkit::Reply::text),
+            Command::Market => Market.reply(ctx).await.map(botkit::Reply::text),
+            Command::Compare(raw) => CompareArgs::parse(raw)?
+                .reply(ctx)
+                .await
+                .map(botkit::Reply::text),
+            Command::FearGreed => FearGreed.reply(ctx).await.map(botkit::Reply::text),
+            Command::Trending => Trending.reply(ctx).await.map(botkit::Reply::text),
+            Command::Info(raw) => InfoArgs::parse(raw)?
+                .reply(ctx)
+                .await
+                .map(botkit::Reply::text),
+            Command::Help => Help.reply().await.map(botkit::Reply::text),
+        }
     }
 }
