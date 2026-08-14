@@ -42,6 +42,7 @@ function emptyDetail(name: string, hours: number): BotDetail {
     jobs: [],
     panics: [],
     restarts: [],
+    deploys: [],
     errors: [],
   };
 }
@@ -177,7 +178,7 @@ function BotDetailPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Restarts</CardTitle>
@@ -191,6 +192,29 @@ function BotDetailPage() {
                   <li key={r.ts} className="flex items-center gap-2 text-sm">
                     <span className="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
                     <span className="tabular-nums">{fmtStamp(r.ts)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Deploys</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.deploys.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No deploys detected in this window.</p>
+            ) : (
+              <ul className="space-y-2">
+                {data.deploys.map((d) => (
+                  <li key={d.ts} className="flex items-center gap-2 text-sm">
+                    <span className="size-1.5 rounded-full bg-sky-500" aria-hidden="true" />
+                    <span className="tabular-nums">{fmtStamp(d.ts)}</span>
+                    <span className="text-muted-foreground">
+                      {d.from} → {d.to}
+                    </span>
                   </li>
                 ))}
               </ul>

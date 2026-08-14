@@ -107,6 +107,18 @@ export function buildBotDetail(
     }
   }
 
+  // A version change means a deploy (or a rollback).
+  const deploys: { ts: number; from: string; to: string }[] = [];
+  let prevVersion: string | null = null;
+  for (const s of sorted) {
+    if (s.status) {
+      if (prevVersion !== null && s.status.version !== prevVersion) {
+        deploys.push({ ts: s.ts, from: prevVersion, to: s.status.version });
+      }
+      prevVersion = s.status.version;
+    }
+  }
+
   // Merge consecutive identical errors into incidents; a long outage is one
   // row, not thousands.
   const errors: { ts: number; end: number; message: string }[] = [];
@@ -132,6 +144,7 @@ export function buildBotDetail(
     jobs,
     panics,
     restarts,
+    deploys,
     errors,
   };
 }
