@@ -6,7 +6,7 @@ use anyhow::Result;
 use futures::future::join_all;
 use serde_json::Value;
 
-use crate::{BotTarget, alerter::Alerter, db::Db, stats::Stats};
+use crate::{alerter::Alerter, config::BotTarget, db::Db, stats::Stats};
 
 /// How often each bot's status is fetched.
 const POLL_INTERVAL: Duration = Duration::from_secs(30);
