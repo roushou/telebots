@@ -1,20 +1,24 @@
 //! The single send point and background-job supervision.
 //!
-//! [`dispatch`] interprets a [`crate::Reply`] and either sends it or runs a
-//! [`crate::reply::Job`] under [`Supervisor`], which delivers the outcome
-//! and drains on shutdown. Everything here is crate-private: bots produce
-//! `Reply`s, they never touch this.
+//! [`dispatch`] interprets a [`crate::Reply`] and either delivers it through
+//! a [`Messenger`] or runs a [`crate::reply::Job`] under [`Supervisor`],
+//! which delivers the outcome and drains on shutdown. Everything here is
+//! crate-private: bots produce `Reply`s, they never touch this.
 
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{Result, anyhow};
-use teloxide::prelude::*;
+use teloxide::{
+    requests::ResponseResult,
+    types::{ChatId, MessageId},
+};
 use tokio::{
     task::{JoinError, JoinSet},
     time::error::Elapsed,
 };
 
 use crate::{
+    messenger::Messenger,
     metrics::Metrics,
     reply::{Job, JobCtx, Reply},
 };
@@ -40,13 +44,14 @@ impl Supervisor {
 
     /// Run `job` in the background; deliver its reply (or a uniform error)
     /// and clean up the placeholder.
-    pub(crate) async fn spawn(
+    pub(crate) async fn spawn<M: Messenger>(
         &self,
         job: Job,
         ctx: JobCtx,
-        bot: Bot,
-        msg: Message,
-        placeholder: Message,
+        messenger: M,
+        chat: ChatId,
+        reply_to: MessageId,
+        placeholder: MessageId,
     ) {
         self.metrics.job_started();
         let metrics = self.metrics.clone();
@@ -54,7 +59,7 @@ impl Supervisor {
         join_set.spawn(async move {
             let outcome = Self::run_job(job, ctx).await;
             let failed = outcome.is_err();
-            Self::deliver(&bot, &msg, &placeholder, outcome).await;
+            Self::deliver(&messenger, chat, reply_to, placeholder, outcome).await;
             metrics.job_finished(failed);
         });
     }
@@ -108,17 +113,19 @@ impl Supervisor {
     }
 
     /// Deliver the job's outcome; the placeholder is always cleaned up.
-    async fn deliver(bot: &Bot, msg: &Message, placeholder: &Message, outcome: Result<Reply>) {
+    async fn deliver<M: Messenger>(
+        messenger: &M,
+        chat: ChatId,
+        reply_to: MessageId,
+        placeholder: MessageId,
+        outcome: Result<Reply>,
+    ) {
         match outcome {
             Ok(Reply::Edit(block)) => {
                 // The edit replaces the placeholder, so there is nothing
                 // left to delete.
-                if let Err(e) = bot
-                    .edit_message_text(
-                        placeholder.chat.id,
-                        placeholder.id,
-                        block.truncate(MAX_MESSAGE_LEN).build(),
-                    )
+                if let Err(e) = messenger
+                    .edit_text(chat, placeholder, block.truncate(MAX_MESSAGE_LEN).build())
                     .await
                 {
                     tracing::warn!("failed to edit placeholder: {e}");
@@ -126,71 +133,76 @@ impl Supervisor {
                 return;
             }
             Ok(Reply::Text(block)) => {
-                if let Err(e) = bot
-                    .send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
+                if let Err(e) = messenger
+                    .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build())
                     .await
                 {
                     tracing::warn!("failed to send job reply: {e}");
                 }
             }
             Ok(Reply::Photo { bytes, caption }) => {
-                if let Err(e) = Reply::send_photo(bot, msg, bytes, caption).await {
+                if let Err(e) = messenger.send_photo(chat, reply_to, bytes, caption).await {
                     tracing::warn!("failed to deliver photo: {e}");
-                    let _ = bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await;
+                    let _ = messenger.send_text(chat, format!("⚠️ {e:#}")).await;
                 }
             }
             Ok(Reply::Background { .. }) => {
                 tracing::error!("background job returned a Background reply");
             }
             Err(e) => {
-                tracing::warn!(chat_id = msg.chat.id.0, "background job failed: {e:#}");
-                let _ = bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await;
+                tracing::warn!(chat_id = chat.0, "background job failed: {e:#}");
+                let _ = messenger.send_text(chat, format!("⚠️ {e:#}")).await;
             }
         }
-        if let Err(e) = bot.delete_message(msg.chat.id, placeholder.id).await {
+        if let Err(e) = messenger.delete(chat, placeholder).await {
             tracing::warn!("failed to delete placeholder: {e}");
         }
     }
 }
 
-/// The single send point: interpret a command's [`Reply`], send it (with
+/// The single send point: interpret a command's [`Reply`], deliver it (with
 /// Telegram's limits), or start a supervised background job. Errors render
 /// as a uniform `⚠️` message.
-pub(crate) async fn dispatch<F>(
-    bot: &Bot,
-    msg: &Message,
+pub(crate) async fn dispatch<M, F>(
+    messenger: &M,
+    chat: ChatId,
+    reply_to: MessageId,
+    user_id: Option<i64>,
     supervisor: &Supervisor,
     reply: F,
 ) -> ResponseResult<()>
 where
+    M: Messenger,
     F: Future<Output = Result<Reply>>,
 {
     supervisor.metrics.note_command();
     match reply.await {
         Ok(Reply::Text(block)) => {
-            bot.send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
+            messenger
+                .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build())
                 .await?;
         }
         Ok(Reply::Photo { bytes, caption }) => {
-            Reply::send_photo(bot, msg, bytes, caption).await?;
+            messenger.send_photo(chat, reply_to, bytes, caption).await?;
         }
         Ok(Reply::Edit(block)) => {
             // Nothing to edit in the direct path; fall back to a message.
-            bot.send_message(msg.chat.id, block.truncate(MAX_MESSAGE_LEN).build())
+            messenger
+                .send_text(chat, block.truncate(MAX_MESSAGE_LEN).build())
                 .await?;
         }
         Ok(Reply::Background { placeholder, job }) => {
-            let placeholder = bot.send_message(msg.chat.id, placeholder).await?;
+            let placeholder_id = messenger.send_text(chat, placeholder).await?;
             let ctx = JobCtx {
-                chat_id: msg.chat.id.0,
-                user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
+                chat_id: chat.0,
+                user_id,
             };
             supervisor
-                .spawn(job, ctx, bot.clone(), msg.clone(), placeholder)
+                .spawn(job, ctx, messenger.clone(), chat, reply_to, placeholder_id)
                 .await;
         }
         Err(e) => {
-            bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await?;
+            messenger.send_text(chat, format!("⚠️ {e:#}")).await?;
         }
     }
     Ok(())
@@ -203,6 +215,144 @@ mod tests {
     use telebots_core::Block;
 
     use super::*;
+
+    fn block(text: &str) -> Block {
+        let mut b = Block::new();
+        b.line(text);
+        b
+    }
+
+    /// Records every delivery call; `ChatId(1)` is the only chat used.
+    #[derive(Clone, Default)]
+    struct Mock {
+        calls: Arc<tokio::sync::Mutex<Vec<Call>>>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum Call {
+        SendText(String),
+        SendPhoto(Option<String>),
+        EditText(String),
+        Delete,
+    }
+
+    #[crate::async_trait]
+    impl Messenger for Mock {
+        async fn send_text(&self, _chat: ChatId, text: String) -> ResponseResult<MessageId> {
+            self.calls.lock().await.push(Call::SendText(text));
+            Ok(MessageId(1))
+        }
+
+        async fn send_photo(
+            &self,
+            _chat: ChatId,
+            _reply_to: MessageId,
+            _bytes: Vec<u8>,
+            caption: Option<String>,
+        ) -> ResponseResult<MessageId> {
+            self.calls.lock().await.push(Call::SendPhoto(caption));
+            Ok(MessageId(2))
+        }
+
+        async fn edit_text(
+            &self,
+            _chat: ChatId,
+            _msg: MessageId,
+            text: String,
+        ) -> ResponseResult<()> {
+            self.calls.lock().await.push(Call::EditText(text));
+            Ok(())
+        }
+
+        async fn delete(&self, _chat: ChatId, _msg: MessageId) -> ResponseResult<()> {
+            self.calls.lock().await.push(Call::Delete);
+            Ok(())
+        }
+    }
+
+    async fn calls(mock: &Mock) -> Vec<Call> {
+        mock.calls.lock().await.clone()
+    }
+
+    #[tokio::test]
+    async fn dispatch_sends_text() {
+        let messenger = Mock::default();
+        let supervisor = Supervisor::new(Metrics::new("test", "0.1.0"));
+        let reply = async { Ok(Reply::Text(block("hello"))) };
+
+        dispatch(
+            &messenger,
+            ChatId(1),
+            MessageId(5),
+            None,
+            &supervisor,
+            reply,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            calls(&messenger).await,
+            vec![Call::SendText("hello".into())]
+        );
+    }
+
+    #[tokio::test]
+    async fn dispatch_renders_errors() {
+        let messenger = Mock::default();
+        let supervisor = Supervisor::new(Metrics::new("test", "0.1.0"));
+        let reply = async { Err::<Reply, _>(anyhow::anyhow!("boom")) };
+
+        dispatch(
+            &messenger,
+            ChatId(1),
+            MessageId(5),
+            None,
+            &supervisor,
+            reply,
+        )
+        .await
+        .unwrap();
+
+        let recorded = calls(&messenger).await;
+        assert_eq!(recorded.len(), 1);
+        assert!(matches!(&recorded[0], Call::SendText(t) if t == "⚠️ boom"));
+    }
+
+    #[tokio::test]
+    async fn background_job_delivers_and_cleans_up() {
+        let messenger = Mock::default();
+        let supervisor = Supervisor::new(Metrics::new("test", "0.1.0"));
+        let reply = async {
+            Ok(Reply::Background {
+                placeholder: "working…".into(),
+                job: Job::new(Duration::from_secs(1), |_ctx| {
+                    Box::pin(async { Ok(Reply::Text(block("done"))) })
+                }),
+            })
+        };
+
+        dispatch(
+            &messenger,
+            ChatId(1),
+            MessageId(5),
+            Some(42),
+            &supervisor,
+            reply,
+        )
+        .await
+        .unwrap();
+        supervisor.drain(Duration::from_secs(1)).await;
+
+        assert_eq!(
+            calls(&messenger).await,
+            vec![
+                Call::SendText("working…".into()),
+                Call::SendText("done".into()),
+                Call::Delete,
+            ]
+        );
+    }
 
     #[tokio::test]
     async fn job_outcome_maps_timeout_and_panic() {

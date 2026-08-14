@@ -99,6 +99,7 @@ mod error;
 mod guard;
 mod health;
 mod inline;
+mod messenger;
 mod metrics;
 mod reply;
 mod request;

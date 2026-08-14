@@ -9,10 +9,6 @@ use std::{future::Future, pin::Pin, time::Duration};
 
 use anyhow::Result;
 use telebots_core::Block;
-use teloxide::{
-    prelude::*,
-    types::{InputFile, ReplyParameters},
-};
 
 /// Telegram's photo caption length limit.
 const MAX_CAPTION_LEN: usize = 1024;
@@ -44,24 +40,8 @@ pub enum Reply {
 }
 
 impl Reply {
-    /// Send a photo with an optional caption, replying to `msg`.
-    pub(crate) async fn send_photo(
-        bot: &Bot,
-        msg: &Message,
-        bytes: Vec<u8>,
-        caption: Option<String>,
-    ) -> ResponseResult<Message> {
-        let mut request = bot
-            .send_photo(msg.chat.id, InputFile::memory(bytes))
-            .reply_parameters(ReplyParameters::new(msg.id));
-        if let Some(caption) = caption {
-            request = request.caption(Self::cap_caption(caption));
-        }
-        request.await
-    }
-
     /// Cap a caption at Telegram's limit.
-    fn cap_caption(caption: String) -> String {
+    pub(crate) fn cap_caption(caption: String) -> String {
         if caption.chars().count() > MAX_CAPTION_LEN {
             let mut out: String = caption.chars().take(MAX_CAPTION_LEN - 1).collect();
             out.push('…');

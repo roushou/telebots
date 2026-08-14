@@ -138,9 +138,27 @@ where
     G: Guard<C, C::Ctx>,
 {
     let req = Request::from_message(&msg);
+    let chat = msg.chat.id;
+    let reply_to = msg.id;
+    let user_id = msg.from.as_ref().map(|u| u.id.0 as i64);
     match guard.check(&ctx, &req, &cmd).await {
-        Ok(Some(reply)) => dispatch(&bot, &msg, &supervisor, async { Ok(reply) }).await,
-        Ok(None) => dispatch(&bot, &msg, &supervisor, cmd.reply(&ctx, &req)).await,
-        Err(e) => dispatch(&bot, &msg, &supervisor, async { Err(e) }).await,
+        Ok(Some(reply)) => {
+            dispatch(&bot, chat, reply_to, user_id, &supervisor, async {
+                Ok(reply)
+            })
+            .await
+        }
+        Ok(None) => {
+            dispatch(
+                &bot,
+                chat,
+                reply_to,
+                user_id,
+                &supervisor,
+                cmd.reply(&ctx, &req),
+            )
+            .await
+        }
+        Err(e) => dispatch(&bot, chat, reply_to, user_id, &supervisor, async { Err(e) }).await,
     }
 }
