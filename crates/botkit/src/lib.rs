@@ -63,6 +63,8 @@
 //!   by an [`InlineHandler`] returning [`InlineAnswer`].
 //! - `.callback(handler)` — inline-keyboard button taps, handled by a
 //!   [`CallbackHandler`] that can edit the message or send a new one.
+//! - `.stats()` — the built-in `/stats` admin command (the bot's own
+//!   metrics).
 //!
 //! # Concepts
 //!
@@ -110,6 +112,7 @@ mod metrics;
 mod reply;
 mod request;
 mod router;
+mod stats;
 mod telemetry;
 
 pub use async_trait::async_trait;

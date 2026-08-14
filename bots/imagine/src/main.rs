@@ -21,7 +21,8 @@ async fn main() -> anyhow::Result<()> {
     let storage = Storage::open(&config.db_path).await?;
     let ctx = commands::Ctx { generator, storage };
     let router = botkit::Router::new(ctx)
-        .guarded_command::<commands::Command, cooldown::Cooldown>(cooldown::Cooldown);
+        .guarded_command::<commands::Command, cooldown::Cooldown>(cooldown::Cooldown)
+        .stats();
 
     botkit::Bot::builder()
         .token(config.telegram_bot_token)

@@ -82,6 +82,16 @@ impl<Ctx: Clone + Send + Sync + 'static> Router<Ctx> {
         self
     }
 
+    /// Add the built-in `/stats` admin command.
+    pub fn stats(mut self) -> Self {
+        self.menu.push(MenuEntry {
+            command: "/stats".into(),
+            description: "Show bot stats".into(),
+        });
+        self.branches.push(Box::new(crate::stats::stats_branch));
+        self
+    }
+
     pub(crate) fn into_parts(self) -> (Ctx, Vec<MenuEntry>, Vec<Branch>) {
         (self.ctx, self.menu, self.branches)
     }

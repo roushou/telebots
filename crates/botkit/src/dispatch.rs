@@ -19,7 +19,7 @@ use tokio::{
 
 use crate::{
     messenger::Messenger,
-    metrics::Metrics,
+    metrics::{Health, Metrics},
     reply::{Job, JobCtx, Reply},
 };
 
@@ -50,6 +50,11 @@ impl Supervisor {
     /// Record one failed execution of the named command.
     pub(crate) fn note_command_error(&self, name: &'static str) {
         self.metrics.note_command_error(name);
+    }
+
+    /// The current metrics snapshot.
+    pub(crate) fn health(&self) -> Health {
+        self.metrics.health()
     }
 
     /// Run `job` in the background; deliver its reply (or a uniform error)

@@ -40,4 +40,5 @@ quote into the chat.
 | `/fear_greed`            | Fear & Greed index                     |
 | `/trending`              | Top trending coins                     |
 | `/info btc`              | Category, website, description         |
+| `/stats`                 | Bot uptime, commands, jobs, panics     |
 | `/help`                  | Show this help                         |

@@ -22,7 +22,8 @@ async fn main() -> anyhow::Result<()> {
     let router = botkit::Router::new(ctx)
         .command::<commands::Command>()
         .inline_query(inline::Inline)
-        .callback(callback::PriceRefresh);
+        .callback(callback::PriceRefresh)
+        .stats();
 
     botkit::Bot::builder()
         .token(config.telegram_bot_token)

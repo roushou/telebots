@@ -33,6 +33,7 @@ Use a separate test bot token from @BotFather for local dev.
 | --------------------------- | ------------------------------------ |
 | `/imagine [model] <prompt>` | Generate an image from a prompt      |
 | `/history`                  | List your recent generations         |
+| `/stats`                    | Bot uptime, commands, jobs, panics   |
 | `/help`                     | Show this help                       |
 
 ## Models
