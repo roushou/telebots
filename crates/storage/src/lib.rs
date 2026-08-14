@@ -10,6 +10,7 @@
 
 mod error;
 mod kv;
+mod migrations;
 mod records;
 mod sql;
 
@@ -37,7 +38,7 @@ impl Storage {
                 path: path.clone(),
                 source,
             })?;
-            create_schema(&conn)?;
+            migrations::migrate(&conn)?;
             Ok(Self {
                 inner: Arc::new(Mutex::new(conn)),
             })
@@ -60,27 +61,4 @@ impl Storage {
         })
         .await?
     }
-}
-
-fn create_schema(conn: &Connection) -> Result<(), Error> {
-    conn.execute_batch(
-        "PRAGMA journal_mode=WAL;
-         PRAGMA synchronous=NORMAL;
-         PRAGMA busy_timeout=5000;
-         PRAGMA foreign_keys=ON;
-         CREATE TABLE IF NOT EXISTS kv (
-             key   TEXT PRIMARY KEY,
-             value BLOB NOT NULL
-         );
-         CREATE TABLE IF NOT EXISTS records (
-             id         INTEGER PRIMARY KEY AUTOINCREMENT,
-             chat_id    INTEGER NOT NULL,
-             user_id    INTEGER,
-             kind       TEXT NOT NULL,
-             text       TEXT,
-             payload    BLOB,
-             created_at INTEGER NOT NULL
-         );",
-    )?;
-    Ok(())
 }
