@@ -1,14 +1,15 @@
 //! Command routing for the Imagine bot.
 //!
-//! Commands return [`botkit::Reply`] outcomes; botkit's dispatcher is the
-//! single place that sends. Generation runs in a supervised background job
-//! that delivers the photo (or an error) and cleans up the placeholder.
+//! The [`Command`] enum is the single source of truth:
+//! - `#[derive(CommandSpec)]` generates parsing, the Telegram menu, and
+//!   `/help` text,
+//! - the [`botkit::Command`] impl produces [`botkit::Reply`] outcomes,
+//! - botkit's dispatcher is the single place that sends.
+//!
+//! Generation runs in a botkit-supervised background job that delivers the
+//! photo (or an error) and cleans up the placeholder.
 
 use storage::Storage;
-use teloxide::{
-    RequestError, dispatching::UpdateHandler, prelude::*, types::Update,
-    utils::command::BotCommands,
-};
 
 mod help;
 mod history;
@@ -24,7 +25,7 @@ pub struct Ctx {
     pub storage: Storage,
 }
 
-#[derive(BotCommands, Clone)]
+#[derive(botkit::CommandSpec, Clone)]
 #[command(rename_rule = "snake_case", description = "Imagine commands:")]
 pub enum Command {
     #[command(description = "Generate an image: /imagine [model] <prompt>")]
@@ -37,48 +38,21 @@ pub enum Command {
     Help,
 }
 
-impl Command {
+#[botkit::async_trait]
+impl botkit::Command for Command {
+    type Ctx = Ctx;
+
     /// Produce the reply. The match is thin and exhaustive; each variant
     /// parses and delegates to its command object.
-    async fn reply(
-        &self,
-        ctx: &Ctx,
-        chat_id: i64,
-        user_id: Option<i64>,
-    ) -> anyhow::Result<botkit::Reply> {
+    async fn reply(&self, ctx: &Ctx, req: &botkit::Request) -> anyhow::Result<botkit::Reply> {
         match self {
-            Command::Imagine(raw) => ImagineArgs::parse(raw)?.reply(ctx, chat_id, user_id).await,
-            Command::History => History.reply(ctx, chat_id).await,
+            Command::Imagine(raw) => {
+                ImagineArgs::parse(raw)?
+                    .reply(ctx, req.chat_id, req.user_id)
+                    .await
+            }
+            Command::History => History.reply(ctx, req.chat_id).await,
             Command::Help => Help.reply().await,
         }
     }
-
-    /// Route a parsed command through botkit's single send point.
-    pub async fn dispatch(
-        self,
-        bot: Bot,
-        msg: Message,
-        ctx: Ctx,
-        runtime: botkit::Runtime,
-    ) -> ResponseResult<()> {
-        let chat_id = msg.chat.id.0;
-        let user_id = msg.from.as_ref().map(|u| u.id.0 as i64);
-        botkit::dispatch(&bot, &msg, &runtime, self.reply(&ctx, chat_id, user_id)).await
-    }
-
-    /// Register this command set as the bot's Telegram command menu.
-    pub async fn register_menu(bot: &Bot) -> ResponseResult<()> {
-        bot.set_my_commands(Command::bot_commands()).await?;
-        Ok(())
-    }
-}
-
-/// The full handler tree. Commands parse to a [`Command`]; dispatch happens
-/// in [`Command::dispatch`].
-pub fn routes() -> UpdateHandler<RequestError> {
-    dptree::entry().branch(
-        Update::filter_message()
-            .filter_command::<Command>()
-            .endpoint(Command::dispatch),
-    )
 }

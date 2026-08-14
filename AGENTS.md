@@ -16,9 +16,13 @@ via Docker Compose.
 ```
 bots/<name>/          one self-contained bot: src/, Dockerfile, README.md,
                       .env (gitignored) + .env.example (committed)
-crates/botkit/        bot framework: app.rs (dispatcher runner),
-                      health.rs (metrics server), telemetry.rs (tracing,
-                      panic hook)
+crates/botkit/        bot framework: bot.rs (poller + dispatcher),
+                      command.rs (Command/CommandSpec traits),
+                      reply.rs (Reply/Job outcomes), request.rs,
+                      error.rs, health.rs (metrics server),
+                      telemetry.rs (tracing, panic hook)
+crates/botkit-derive/ the `#[derive(CommandSpec)]` proc macro
+                      (parsing, /help, Telegram menu)
 crates/core/          shared library: blocks/ (Block, Cell, Line, Change)
                       and money/ (Money, Currency) — the document model
                       and value types; nothing renders domain data
@@ -56,13 +60,14 @@ goes in `crates/`.
   build strings with `push_str` and never call `send_message` — they
   return blocks or explicit outcomes.
 - **Command pattern** (in `bots/<name>/src/commands/`): the `Command` enum is
-  the spec (BotCommands derive → parsing, `/help`, Telegram menu). Each
-  command is an object with typed arguments: a `parse(raw) -> Result<Self>`
-  (validation, usage errors surface to the user) and a `reply` producing an
-  explicit outcome. `Command::dispatch` is the single place that sends.
-  Imagine's `reply` returns an `Outcome` enum (`Text(Block)` | `Generate`
-  intent) — no command calls `send_message`; generation runs in a background
-  task spawned by `dispatch`.
+  the spec (`#[derive(botkit::CommandSpec)]` → parsing, `/help`, Telegram
+  menu). Each command is an object with typed arguments: a
+  `parse(raw) -> Result<Self>` (validation, usage errors surface to the
+  user) and a `reply` producing an explicit outcome. The bot implements
+  `botkit::Command` (its `Ctx` + `reply`); botkit's dispatcher is the single
+  place that sends. Imagine's `reply` returns a `botkit::Reply`
+  (`Text(Block)` | `Background` intent) — no command calls `send_message`;
+  generation runs in a botkit-supervised background job.
 - **Env**: per-bot `.env` (gitignored, per machine) loaded into the process
   env by dotenvy via `CARGO_MANIFEST_DIR`; each binary's `Config` derives
   `serde::Deserialize` and reads the process env with the `config` crate
@@ -90,7 +95,8 @@ goes in `crates/`.
   Identity and runtime knobs are injected via
   `AppConfig { service, version, metrics_port }`. Each bot's own
   `config.rs` owns its defaults (degen 9101, imagine 9102) and reads the
-  `TELEBOTS_METRICS_PORT` override.
+  `TELEBOTS_METRICS_PORT` override. Bots depend on botkit, never on
+  teloxide — the transport stays inside botkit.
 
 ## Commands
 
@@ -146,10 +152,11 @@ before writing deserializers; do not assume endpoint availability.
 
 ## Gotchas
 
-- teloxide's `filter_command` **silently drops** updates when a typed
-  payload's `FromStr` fails — so the enum keeps raw `String` payloads and
-  commands validate in `parse()` (so usage errors reach the user). There is
-  no `RequestResult` type in teloxide 0.17; use `ResponseResult`.
+- `#[derive(botkit::CommandSpec)]` (backed by teloxide's `filter_command`)
+  **silently drops** updates when a typed payload's `FromStr` fails — so the
+  enum keeps raw `String` payloads and commands validate in `parse()` (so
+  usage errors reach the user). There is no `RequestResult` type in teloxide
+  0.17; use `ResponseResult`.
 - rustls resolves to `aws-lc-rs`, whose C build on Windows needs
   CMake/Go/Perl/NASM — the CI Windows job guards this.
 - `scripts/up.sh` resolves the repo root from its own location (no

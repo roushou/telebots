@@ -6,11 +6,12 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
 axum.workspace = true
+botkit-derive = { path = "../botkit-derive" }
 serde.workspace = true
-serde_json.workspace = true
 telebots-core.workspace = true
-teloxide.workspace = true
+teloxide = { version = "0.17", default-features = false, features = ["macros", "rustls", "ctrlc_handler"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

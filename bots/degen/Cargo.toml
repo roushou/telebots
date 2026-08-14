@@ -13,5 +13,4 @@ config.workspace = true
 dotenvy.workspace = true
 serde.workspace = true
 telebots-core.workspace = true
-teloxide.workspace = true
 tokio.workspace = true

@@ -1,33 +1,27 @@
-//! The dispatcher runner: builds the poller, wires graceful shutdown, the
-//! Telegram heartbeat, and the metrics server.
+//! The bot: owns the poller, the command menu, the dispatcher, and graceful
+//! shutdown. Bots build a [`Bot`], hand it their context, and call
+//! [`Bot::run`]; teloxide never appears in a bot's code.
 
 use std::time::Duration;
 
-use teloxide::{RequestError, dispatching::UpdateHandler, prelude::*};
-use thiserror::Error;
-
-use crate::{
-    health::Server,
-    metrics::Metrics,
-    reply::{Runtime, Supervisor},
+use teloxide::{
+    Bot as Api, RequestError,
+    dispatching::{Dispatcher, HandlerExt as _, UpdateFilterExt as _, UpdateHandler},
+    dptree,
+    prelude::Requester,
+    requests::ResponseResult,
+    types::{Message, Update},
+    utils::command::BotCommands,
 };
 
-/// Errors surfaced while starting the bot.
-#[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum AppError {
-    /// The Telegram token was rejected (revoked or invalid).
-    #[error("getMe failed — check the bot token")]
-    GetMe(#[source] teloxide::RequestError),
-
-    /// The metrics port could not be bound.
-    #[error("failed to bind metrics port {port}")]
-    Bind {
-        port: u16,
-        #[source]
-        source: std::io::Error,
-    },
-}
+use crate::{
+    command::Command,
+    error::Error,
+    health::Server,
+    metrics::Metrics,
+    reply::{BoxFuture, Runtime, Supervisor, dispatch},
+    request::Request,
+};
 
 /// How long shutdown waits for in-flight background jobs.
 const DRAIN_GRACE: Duration = Duration::from_secs(15);
@@ -35,7 +29,7 @@ const DRAIN_GRACE: Duration = Duration::from_secs(15);
 /// How often the Telegram `get_me` heartbeat runs.
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
-/// App configuration
+/// Application configuration.
 #[derive(Debug, Clone, Copy)]
 pub struct AppConfig {
     pub service: &'static str,
@@ -43,55 +37,64 @@ pub struct AppConfig {
     pub metrics_port: u16,
 }
 
-/// The bot supplies its own `Ctx`, handler
-/// tree, and menu registration; [`App::run`] owns the dispatcher, the
-/// startup self-check, the heartbeat, and graceful shutdown.
-pub struct App<C> {
+/// A configured bot, ready to run.
+pub struct Bot {
+    api: Api,
     config: AppConfig,
-    ctx: C,
-    routes: UpdateHandler<RequestError>,
 }
 
-impl<C: Clone + Send + Sync + 'static> App<C> {
-    /// A new bot from the application's [`AppConfig`], with the bot's
-    /// context and handler tree.
-    pub fn new(config: AppConfig, ctx: C, routes: UpdateHandler<RequestError>) -> Self {
+impl Bot {
+    /// A bot from its Telegram token and [`AppConfig`].
+    pub fn new(token: impl Into<String>, config: AppConfig) -> Self {
         Self {
+            api: Api::new(token),
             config,
-            ctx,
-            routes,
         }
     }
 
-    /// Run the poller. `bot` is the configured bot; the caller registers
-    /// the command menu on it first.
-    pub async fn run(self, bot: Bot) -> Result<(), AppError> {
+    /// Run the poller. `C` is the bot's command enum (deriving
+    /// [`crate::CommandSpec`] and implementing [`Command`]); `ctx` is the
+    /// bot's command context.
+    pub async fn run<C>(self, ctx: C::Ctx) -> Result<(), Error>
+    where
+        C: Command + BotCommands,
+    {
         let _span = tracing::info_span!("app", service = self.config.service).entered();
 
         // A revoked/invalid token must fail fast instead of polling
         // silently into the void.
-        let me = bot.get_me().await.map_err(AppError::GetMe)?;
+        let me = self
+            .api
+            .get_me()
+            .await
+            .map_err(|e| Error::GetMe(e.to_string()))?;
         tracing::info!(
             "{} started (telegram: @{})",
             self.config.service,
             me.username()
         );
 
+        // Register the Telegram menu from the derived command spec.
+        self.api
+            .set_my_commands(C::bot_commands())
+            .await
+            .map_err(|e| Error::Menu(e.to_string()))?;
+
         let metrics = Metrics::new(self.config.service, self.config.version);
         let port = self.config.metrics_port;
         let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
             .await
-            .map_err(|source| AppError::Bind { port, source })?;
+            .map_err(|source| Error::Bind { port, source })?;
         Server::serve(listener, metrics.clone());
         Self::install_panic_hook(metrics.clone());
-        Self::spawn_heartbeat(bot.clone(), metrics.clone());
+        Self::spawn_heartbeat(self.api.clone(), metrics.clone());
 
         let runtime = Runtime {
             supervisor: Supervisor::new(metrics.clone()),
             metrics,
         };
-        let mut dispatcher = Dispatcher::builder(bot, self.routes)
-            .dependencies(dptree::deps![self.ctx, runtime.clone()])
+        let mut dispatcher = Dispatcher::builder(self.api, Self::routes::<C>())
+            .dependencies(dptree::deps![ctx, runtime.clone()])
             .enable_ctrlc_handler()
             .build();
 
@@ -113,6 +116,18 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
         Ok(())
     }
 
+    /// The handler tree, built from the command enum's derived parser.
+    fn routes<C>() -> UpdateHandler<RequestError>
+    where
+        C: Command + BotCommands,
+    {
+        dptree::entry().branch(
+            Update::filter_message()
+                .filter_command::<C>()
+                .endpoint(handle::<C>),
+        )
+    }
+
     /// Log panics with location and count them in the metrics.
     fn install_panic_hook(metrics: Metrics) {
         let default_hook = std::panic::take_hook();
@@ -131,7 +146,7 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
     }
 
     /// Probe Telegram reachability every [`HEARTBEAT_INTERVAL`].
-    fn spawn_heartbeat(bot: Bot, metrics: Metrics) {
+    fn spawn_heartbeat(bot: Api, metrics: Metrics) {
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(HEARTBEAT_INTERVAL);
             loop {
@@ -164,4 +179,20 @@ impl<C: Clone + Send + Sync + 'static> App<C> {
             tokio::signal::ctrl_c().await
         }
     }
+}
+
+/// The single command endpoint: turn the update into a [`Request`] and route
+/// the command's reply through botkit's send point. The boxed future keeps the
+/// endpoint `Injectable` when `C` is generic.
+fn handle<C: Command>(
+    cmd: C,
+    bot: Api,
+    msg: Message,
+    ctx: C::Ctx,
+    runtime: Runtime,
+) -> BoxFuture<ResponseResult<()>> {
+    Box::pin(async move {
+        let req = Request::from_message(&msg);
+        dispatch(&bot, &msg, &runtime, cmd.reply(&ctx, &req)).await
+    })
 }

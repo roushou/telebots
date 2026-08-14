@@ -1,9 +1,13 @@
 //! The reply model: what a command wants the bot to do, and the single
 //! place that executes it.
 //!
-//! [`Reply::Background`] jobs and [`dispatch`] carry [`anyhow::Result`]
-//! because the command layer lives in the binaries and authors its errors
-//! with `anyhow`; botkit only transports and renders them (`⚠️ {e:#}`).
+//! [`Reply::Background`] jobs and the command layer's results carry
+//! [`anyhow::Result`] because command errors are authored with `anyhow` in
+//! the binaries; botkit only transports and renders them (`⚠️ {e:#}`).
+//!
+//! Everything teloxide-typed (`Bot`, `Message`, `Runtime`, `Supervisor`,
+//! `dispatch`) is crate-private — the public surface is the `Reply`/`Job`
+//! outcomes commands produce.
 
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
@@ -29,8 +33,9 @@ const MAX_CAPTION_LEN: usize = 1024;
 /// A boxed, sendable future.
 pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
-/// What a command wants the bot to do. Interpreted by [`dispatch`] —
-/// commands never call `send_message`.
+/// What a command wants the bot to do. Interpreted by botkit's single send
+/// point — commands never call `send_message`.
+#[non_exhaustive]
 pub enum Reply {
     /// Send this block as a text message (capped at 4096).
     Text(Block),
@@ -96,10 +101,6 @@ impl Job {
 
 /// Everything a background job gets to finish the interaction.
 pub struct JobCtx {
-    pub bot: Bot,
-    pub msg: Message,
-    /// The acknowledged placeholder message.
-    pub placeholder: Message,
     pub chat_id: i64,
     pub user_id: Option<i64>,
 }
@@ -107,14 +108,14 @@ pub struct JobCtx {
 /// The dispatch glue: job supervision and runtime metrics, injected as a
 /// single dependency into handlers.
 #[derive(Clone)]
-pub struct Runtime {
+pub(crate) struct Runtime {
     pub supervisor: Supervisor,
     pub metrics: Metrics,
 }
 
 /// Tracks in-flight background jobs so shutdown can drain them.
 #[derive(Clone)]
-pub struct Supervisor {
+pub(crate) struct Supervisor {
     inner: Arc<tokio::sync::Mutex<JoinSet<()>>>,
     metrics: Metrics,
 }
@@ -129,12 +130,16 @@ impl Supervisor {
 
     /// Run `job` in the background; deliver its reply (or a uniform error)
     /// and clean up the placeholder.
-    pub async fn spawn(&self, job: Job, ctx: JobCtx) {
+    pub(crate) async fn spawn(
+        &self,
+        job: Job,
+        ctx: JobCtx,
+        bot: Bot,
+        msg: Message,
+        placeholder: Message,
+    ) {
         self.metrics.job_started();
         let metrics = self.metrics.clone();
-        let bot = ctx.bot.clone();
-        let msg = ctx.msg.clone();
-        let placeholder = ctx.placeholder.clone();
         let mut join_set = self.inner.lock().await;
         join_set.spawn(async move {
             // The job runs on its own task, so a panic surfaces as a
@@ -149,7 +154,7 @@ impl Supervisor {
     }
 
     /// Wait for in-flight jobs, up to `grace`; abandon the rest.
-    pub async fn drain(&self, grace: Duration) {
+    pub(crate) async fn drain(&self, grace: Duration) {
         let mut join_set = self.inner.lock().await;
         let deadline = tokio::time::Instant::now() + grace;
         loop {
@@ -211,7 +216,7 @@ impl Supervisor {
 /// The single send point: interpret a command's [`Reply`], send it (with
 /// Telegram's limits), or start a supervised background job. Errors render
 /// as a uniform `⚠️` message.
-pub async fn dispatch<F>(
+pub(crate) async fn dispatch<F>(
     bot: &Bot,
     msg: &Message,
     runtime: &Runtime,
@@ -232,13 +237,13 @@ where
         Ok(Reply::Background { placeholder, job }) => {
             let placeholder = bot.send_message(msg.chat.id, placeholder).await?;
             let ctx = JobCtx {
-                bot: bot.clone(),
-                msg: msg.clone(),
-                placeholder,
                 chat_id: msg.chat.id.0,
                 user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
             };
-            runtime.supervisor.spawn(job, ctx).await;
+            runtime
+                .supervisor
+                .spawn(job, ctx, bot.clone(), msg.clone(), placeholder)
+                .await;
         }
         Err(e) => {
             bot.send_message(msg.chat.id, format!("⚠️ {e:#}")).await?;

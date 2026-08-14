@@ -1,20 +1,15 @@
 //! Command routing.
 //!
 //! The [`Command`] enum is the single source of truth:
-//! - `BotCommands` derives parsing (`filter_command`) and `/help`
-//!   (`descriptions`),
-//! - [`Command::reply`] produces a [`botkit::Reply`] for each variant,
-//! - [`Command::dispatch`] routes it through botkit's single send point.
+//! - `#[derive(CommandSpec)]` generates parsing, the Telegram menu, and
+//!   `/help` text,
+//! - the [`botkit::Command`] impl produces a [`botkit::Reply`] per variant,
+//! - botkit's dispatcher is the single place that sends.
 //!
 //! Each command is an object in its own module: typed argument structs
 //! (`PriceArgs`, ...) parse the raw string in [`args`], and every command
 //! exposes a `reply` method returning a [`Block`]. Commands never touch
 //! `send_message`.
-
-use teloxide::{
-    RequestError, dispatching::UpdateHandler, prelude::*, types::Update,
-    utils::command::BotCommands,
-};
 
 mod args;
 mod compare;
@@ -41,7 +36,7 @@ pub struct Ctx {
     pub coingecko: CoinGeckoClient,
 }
 
-#[derive(BotCommands, Clone)]
+#[derive(botkit::CommandSpec, Clone)]
 #[command(rename_rule = "snake_case", description = "Degen commands:")]
 pub enum Command {
     #[command(description = "Get prices: /price btc eth")]
@@ -69,10 +64,13 @@ pub enum Command {
     Help,
 }
 
-impl Command {
+#[botkit::async_trait]
+impl botkit::Command for Command {
+    type Ctx = Ctx;
+
     /// Produce the reply. The match is thin and exhaustive; each variant
     /// parses its arguments and delegates to the command object.
-    async fn reply(&self, ctx: &Ctx) -> anyhow::Result<botkit::Reply> {
+    async fn reply(&self, ctx: &Ctx, _req: &botkit::Request) -> anyhow::Result<botkit::Reply> {
         let block = match self {
             Command::Price(raw) => PriceArgs::parse(raw)?.reply(ctx).await,
             Command::Convert(raw) => ConvertArgs::parse(raw)?.reply(ctx).await,
@@ -85,31 +83,4 @@ impl Command {
         }?;
         Ok(botkit::Reply::Text(block))
     }
-
-    /// Route a parsed command through botkit's single send point.
-    pub async fn dispatch(
-        self,
-        bot: Bot,
-        msg: Message,
-        ctx: Ctx,
-        runtime: botkit::Runtime,
-    ) -> ResponseResult<()> {
-        botkit::dispatch(&bot, &msg, &runtime, self.reply(&ctx)).await
-    }
-
-    /// Register this command set as the bot's Telegram command menu.
-    pub async fn register_menu(bot: &Bot) -> ResponseResult<()> {
-        bot.set_my_commands(Command::bot_commands()).await?;
-        Ok(())
-    }
-}
-
-/// The full handler tree. Commands parse to a [`Command`]; dispatch happens
-/// in [`Command::dispatch`].
-pub fn routes() -> UpdateHandler<RequestError> {
-    dptree::entry().branch(
-        Update::filter_message()
-            .filter_command::<Command>()
-            .endpoint(Command::dispatch),
-    )
 }
