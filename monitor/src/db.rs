@@ -68,6 +68,18 @@ impl Db {
         Ok(())
     }
 
+    /// Delete snapshots older than `days`.
+    pub async fn prune(&self, days: u64) -> Result<()> {
+        let cutoff = Self::now_unix() - (days as i64) * 86_400;
+        self.storage
+            .execute(
+                "DELETE FROM snapshots WHERE ts < ?1",
+                &[SqlValue::Integer(cutoff)],
+            )
+            .await?;
+        Ok(())
+    }
+
     /// The newest snapshot per bot.
     pub async fn latest_per_bot(&self) -> Result<Vec<Snapshot>> {
         Ok(self
@@ -113,5 +125,31 @@ impl Db {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn prune_removes_snapshots_older_than_retention() -> Result<()> {
+        let db = Db::open(":memory:").await?;
+        let now = Db::now_unix();
+        for ts in [now - 31 * 86_400, now - 10, now] {
+            db.storage
+                .execute(
+                    "INSERT INTO snapshots (bot, ts, status, error) VALUES (?1, ?2, NULL, NULL)",
+                    &[SqlValue::Text("degen".to_string()), SqlValue::Integer(ts)],
+                )
+                .await?;
+        }
+
+        db.prune(30).await?;
+
+        let history = db.history("degen", 10).await?;
+        assert_eq!(history.len(), 2, "only the 31-day-old snapshot is pruned");
+        assert!(history.iter().all(|s| s.ts >= now - 30 * 86_400));
+        Ok(())
     }
 }

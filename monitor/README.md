@@ -30,6 +30,7 @@ monitor). Override with `MONITOR_API_URL` if the API lives elsewhere.
 | `MONITOR_BOTS`    | Bot `/metrics` endpoints. Local dev: `mise.toml` (`http://localhost:9101/metrics`); container: `docker-compose.yml` (compose network URLs) |
 | `MONITOR_DB_PATH` | SQLite path (default `monitor.db` locally; `/data/monitor.db` in the container via `docker-compose.yml`) |
 | `MONITOR_PORT`    | JSON API port (default `9110`; set in `docker-compose.yml`) |
+| `MONITOR_RETENTION_DAYS` | Snapshot retention in days (default `30`; older snapshots are pruned daily) |
 | `MONITOR_API_URL` | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`; set in `mise.toml` for the `web` task) |
 
 ## API

@@ -5,6 +5,8 @@ mod api;
 mod db;
 mod poller;
 
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
@@ -21,12 +23,16 @@ pub const DEFAULT_DB_PATH: &str = "monitor.db";
 /// Default port used when `MONITOR_PORT` is unset.
 pub const DEFAULT_PORT: u16 = 9110;
 
+/// Default snapshot retention, in days.
+pub const DEFAULT_RETENTION_DAYS: u64 = 30;
+
 /// Fully validated runtime configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
     pub bots: Vec<BotTarget>,
     pub db_path: String,
     pub port: u16,
+    pub retention_days: u64,
 }
 
 /// The raw environment variables, deserialized by the `config` crate.
@@ -41,6 +47,9 @@ struct RawEnv {
     /// HTTP port (`MONITOR_PORT`).
     #[serde(rename = "monitor_port", default = "default_port")]
     port: u16,
+    /// Snapshot retention in days (`MONITOR_RETENTION_DAYS`).
+    #[serde(rename = "monitor_retention_days", default = "default_retention_days")]
+    retention_days: u64,
 }
 
 fn default_db_path() -> String {
@@ -49,6 +58,10 @@ fn default_db_path() -> String {
 
 fn default_port() -> u16 {
     DEFAULT_PORT
+}
+
+fn default_retention_days() -> u64 {
+    DEFAULT_RETENTION_DAYS
 }
 
 impl Config {
@@ -73,6 +86,7 @@ impl Config {
             bots,
             db_path: raw.db_path,
             port: raw.port,
+            retention_days: raw.retention_days,
         })
     }
 
@@ -107,5 +121,19 @@ async fn main() -> anyhow::Result<()> {
     );
 
     poller::Poller::spawn(config.bots.clone(), db.clone());
+
+    // Prune snapshots past the retention window, at startup and daily.
+    let retention_days = config.retention_days;
+    let prune_db = db.clone();
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(Duration::from_secs(86_400));
+        loop {
+            tick.tick().await;
+            if let Err(e) = prune_db.prune(retention_days).await {
+                tracing::warn!("snapshot prune failed: {e:#}");
+            }
+        }
+    });
+
     api::serve(config.port, db).await
 }
