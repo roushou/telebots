@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { BotSnapshot } from "../lib/api";
 import { fmtAgo, fmtUptime } from "../lib/format";
+import { healthOf } from "../lib/health";
 import type { HealthSegment } from "../lib/history";
 import { AvailabilityBand } from "./charts";
 import { StatusBadge } from "./status-badge";
@@ -54,7 +55,7 @@ export function BotTable({
         </TableHeader>
         <TableBody>
           {filtered.map((bot) => {
-            const ok = bot.status !== null && bot.error === null;
+            const botHealth = healthOf(bot);
             const status = bot.status;
             return (
               <TableRow key={bot.bot}>
@@ -64,7 +65,7 @@ export function BotTable({
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge ok={ok} />
+                  <StatusBadge status={botHealth} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">{status?.version ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">

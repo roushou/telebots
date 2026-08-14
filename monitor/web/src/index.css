@@ -27,6 +27,7 @@
 
     /* Semantic chart paint (resolved as full color strings). */
     --chart-up: hsl(142.1 76.2% 36.3%);
+    --chart-degraded: hsl(38 92% 50%);
     --chart-down: hsl(0 72.2% 50.6%);
 
     /* TanStack Charts categorical palette. */
@@ -60,6 +61,7 @@
     --ring: 240 4.9% 83.9%;
 
     --chart-up: hsl(142.1 70.6% 45.3%);
+    --chart-degraded: hsl(32 95% 44%);
     --chart-down: hsl(0 72.2% 50.6%);
 
     --ts-chart-1: hsl(217.2 91.2% 59.8%);

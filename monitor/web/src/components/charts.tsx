@@ -6,13 +6,14 @@ import { scaleUtc } from "d3-scale";
 import { useMemo } from "react";
 
 import { fmtClock } from "../lib/format";
+import type { Health } from "../lib/health";
 import type { HealthSegment } from "../lib/history";
 
 type SegRow = { x1: Date; x2: Date };
 
-function toSegRows(segments: HealthSegment[], up: boolean): SegRow[] {
+function toSegRows(segments: HealthSegment[], status: Health): SegRow[] {
   return segments
-    .filter((s) => s.up === up)
+    .filter((s) => s.status === status)
     .map((s) => ({
       x1: new Date(s.start * 1000),
       x2: new Date(s.end * 1000),
@@ -35,16 +36,24 @@ export function AvailabilityBand({
   className?: string;
 }) {
   const definition = useMemo(() => {
-    const upRows = toSegRows(segments, true);
-    const downRows = toSegRows(segments, false);
+    const okRows = toSegRows(segments, "ok");
+    const degradedRows = toSegRows(segments, "degraded");
+    const downRows = toSegRows(segments, "down");
     return defineChart({
       marks: [
-        rect(upRows, {
+        rect(okRows, {
           x1: "x1",
           x2: "x2",
           y1: () => 0,
           y2: () => 1,
           fill: "var(--chart-up)",
+        }),
+        rect(degradedRows, {
+          x1: "x1",
+          x2: "x2",
+          y1: () => 0,
+          y2: () => 1,
+          fill: "var(--chart-degraded)",
         }),
         rect(downRows, {
           x1: "x1",

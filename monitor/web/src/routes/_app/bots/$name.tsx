@@ -9,6 +9,7 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { fetchBotDetail, type BotDetail } from "../../../lib/api";
 import { fmtDuration, fmtStamp, fmtUptime } from "../../../lib/format";
+import { healthOf } from "../../../lib/health";
 
 const RANGES = [1, 6, 24] as const;
 
@@ -71,7 +72,7 @@ function BotDetailPage() {
 
   const { latest } = data;
   const status = latest.status;
-  const ok = status !== null && latest.error === null;
+  const health = healthOf(latest);
 
   return (
     <div className="space-y-6">
@@ -85,7 +86,7 @@ function BotDetailPage() {
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
-          <StatusBadge ok={ok} />
+          <StatusBadge status={health} />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {status

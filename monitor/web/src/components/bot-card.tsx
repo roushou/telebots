@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import type { BotSnapshot } from "../lib/api";
 import { fmtAgo, fmtUptime } from "../lib/format";
+import { healthOf } from "../lib/health";
 import type { HealthSegment } from "../lib/history";
 import { cn } from "../lib/utils";
 import { AvailabilityBand } from "./charts";
@@ -19,19 +20,19 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function BotCard({ bot, segments }: { bot: BotSnapshot; segments: HealthSegment[] }) {
   const { status, error } = bot;
-  const ok = status !== null && error === null;
+  const health = healthOf(bot);
 
   return (
     <Card className="group transition-shadow hover:shadow-md">
       <Link to="/bots/$name" params={{ name: bot.bot }} className="block">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base font-semibold">{bot.bot}</CardTitle>
-          <StatusBadge ok={ok} />
+          <StatusBadge status={health} />
         </CardHeader>
         <CardContent className="space-y-3">
           <AvailabilityBand segments={segments} height={28} />
 
-          {ok && status ? (
+          {status ? (
             <div className="space-y-1 text-sm">
               <Row label="version" value={status.version} />
               <Row label="uptime" value={fmtUptime(status.uptime_secs)} />

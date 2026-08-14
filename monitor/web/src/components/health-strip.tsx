@@ -1,10 +1,17 @@
 import { Link } from "@tanstack/react-router";
 
 import type { BotSnapshot } from "../lib/api";
+import { healthOf, type Health } from "../lib/health";
 import type { HealthSegment } from "../lib/history";
 import { cn } from "../lib/utils";
 import { AvailabilityBand } from "./charts";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+
+function dot(health: Health): string {
+  if (health === "ok") return "bg-emerald-500";
+  if (health === "degraded") return "bg-amber-500";
+  return "bg-destructive";
+}
 
 export function HealthStrip({
   bots,
@@ -23,7 +30,7 @@ export function HealthStrip({
       <CardContent className="space-y-1">
         {bots.map((bot) => {
           const segments = byBot.get(bot.bot) ?? [];
-          const ok = bot.status !== null && bot.error === null;
+          const botHealth = healthOf(bot);
           return (
             <Link
               key={bot.bot}
@@ -33,10 +40,7 @@ export function HealthStrip({
             >
               <span className="flex w-28 shrink-0 items-center gap-2 text-sm font-medium">
                 <span
-                  className={cn(
-                    "size-2 shrink-0 rounded-full",
-                    ok ? "bg-emerald-500" : "bg-destructive",
-                  )}
+                  className={cn("size-2 shrink-0 rounded-full", dot(botHealth))}
                   aria-hidden="true"
                 />
                 <span className="truncate">{bot.bot}</span>

@@ -1,9 +1,10 @@
 import type { BotDetail, BotSnapshot } from "./api";
+import { healthOf, type Health } from "./health";
 
 /// How often the Rust monitor records a snapshot, in seconds.
 export const POLL_INTERVAL_SECS = 30;
 
-export type HealthSegment = { start: number; end: number; up: boolean };
+export type HealthSegment = { start: number; end: number; status: Health };
 
 /// Snapshots needed to cover `hours` at the poll cadence.
 export function hoursToLimit(hours: number): number {
@@ -11,18 +12,18 @@ export function hoursToLimit(hours: number): number {
 }
 
 /// Collapse a snapshot history (newest-first from the API) into contiguous
-/// up/down spans. `start`/`end` are epoch seconds; a span ends one poll
-/// interval after its last snapshot.
+/// up/down/degraded spans. `start`/`end` are epoch seconds; a span ends one
+/// poll interval after its last snapshot.
 export function toSegments(history: BotSnapshot[]): HealthSegment[] {
   const sorted = history.toSorted((a, b) => a.ts - b.ts);
   const segments: HealthSegment[] = [];
   for (const snap of sorted) {
-    const up = snap.status !== null && snap.error === null;
+    const status = healthOf(snap);
     const last = segments[segments.length - 1];
-    if (last && last.up === up) {
+    if (last && last.status === status) {
       last.end = snap.ts + POLL_INTERVAL_SECS;
     } else {
-      segments.push({ start: snap.ts, end: snap.ts + POLL_INTERVAL_SECS, up });
+      segments.push({ start: snap.ts, end: snap.ts + POLL_INTERVAL_SECS, status });
     }
   }
   return segments;

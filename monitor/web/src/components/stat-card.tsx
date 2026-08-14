@@ -12,7 +12,7 @@ export function StatCard({
   label: string;
   value: ReactNode;
   hint?: string;
-  tone?: "default" | "destructive";
+  tone?: "default" | "warning" | "destructive";
 }) {
   return (
     <Card>
@@ -21,6 +21,7 @@ export function StatCard({
         <div
           className={cn(
             "mt-1 text-2xl font-semibold tabular-nums tracking-tight",
+            tone === "warning" && "text-amber-600 dark:text-amber-500",
             tone === "destructive" && "text-destructive",
           )}
         >

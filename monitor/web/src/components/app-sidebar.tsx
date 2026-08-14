@@ -2,11 +2,14 @@ import { Link } from "@tanstack/react-router";
 import { Activity, Bot, LayoutDashboard } from "lucide-react";
 
 import type { BotSnapshot } from "../lib/api";
+import { healthOf, type Health } from "../lib/health";
 import { cn } from "../lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-function isOk(bot: BotSnapshot): boolean {
-  return bot.status !== null && bot.error === null;
+function tone(health: Health): { icon: string; dot: string } {
+  if (health === "ok") return { icon: "text-emerald-500", dot: "bg-emerald-500" };
+  if (health === "degraded") return { icon: "text-amber-500", dot: "bg-amber-500" };
+  return { icon: "text-destructive", dot: "bg-destructive" };
 }
 
 function Brand({ collapsed }: { collapsed: boolean }) {
@@ -54,7 +57,7 @@ export function AppSidebar({
 
       <div className="flex flex-col gap-0.5">
         {bots.map((bot) => {
-          const ok = isOk(bot);
+          const { icon, dot } = tone(healthOf(bot));
           const link = (
             <Link
               key={bot.bot}
@@ -64,21 +67,10 @@ export function AppSidebar({
               activeProps={{ className: "bg-accent text-accent-foreground" }}
               className="flex h-9 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             >
-              <Bot
-                className={cn(
-                  "size-4 shrink-0",
-                  collapsed && (ok ? "text-emerald-500" : "text-destructive"),
-                )}
-              />
+              <Bot className={cn("size-4 shrink-0", collapsed && icon)} />
               {!collapsed && <span className="flex-1 truncate">{bot.bot}</span>}
               {!collapsed && (
-                <span
-                  className={cn(
-                    "size-2 shrink-0 rounded-full",
-                    ok ? "bg-emerald-500" : "bg-destructive",
-                  )}
-                  aria-hidden="true"
-                />
+                <span className={cn("size-2 shrink-0 rounded-full", dot)} aria-hidden="true" />
               )}
             </Link>
           );

@@ -9,6 +9,7 @@ import { StatCard } from "../../components/stat-card";
 import { Button } from "../../components/ui/button";
 import { fetchOverview, type Overview } from "../../lib/api";
 import { fmtStamp } from "../../lib/format";
+import { healthOf } from "../../lib/health";
 
 export const Route = createFileRoute("/_app/")({
   component: OverviewPage,
@@ -45,8 +46,9 @@ function OverviewPage() {
 
   const segmentsFor = (bot: string) => data.health.find((h) => h.bot === bot)?.segments ?? [];
 
-  const up = data.bots.filter((b) => b.status !== null && b.error === null).length;
-  const down = data.bots.length - up;
+  const up = data.bots.filter((b) => healthOf(b) === "ok").length;
+  const degraded = data.bots.filter((b) => healthOf(b) === "degraded").length;
+  const down = data.bots.filter((b) => healthOf(b) === "down").length;
   const latestTs = data.bots.reduce((max, b) => Math.max(max, b.ts), 0);
 
   return (
@@ -81,9 +83,15 @@ function OverviewPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Bots" value={data.bots.length} hint="configured targets" />
         <StatCard label="Up" value={up} hint="healthy right now" />
+        <StatCard
+          label="Degraded"
+          value={degraded}
+          tone={degraded > 0 ? "warning" : "default"}
+          hint={degraded > 0 ? "telegram link stale" : "all clear"}
+        />
         <StatCard
           label="Down"
           value={down}
