@@ -8,6 +8,16 @@ A bunch of Telegram bots to make Telegram better.
 | [`imagine`](bots/imagine) | AI image generation from prompts           |
 | [`monitor`](monitor) | admin dashboard: per-bot status + history     |
 
+Library crates shared by the bots:
+
+| Crate | Description |
+| --- | --- |
+| [`botkit`](crates/botkit) | the framework: commands, replies, metrics, health |
+| [`botkit-derive`](crates/botkit-derive) | the `#[derive(CommandSpec)]` macro |
+| [`telebots-core`](crates/core) | the document model (`Block`, `Cell`, `Money`) |
+| [`storage`](crates/storage) | reusable SQLite storage |
+| [`coinmarketcap`](crates/coinmarketcap) · [`coingecko`](crates/coingecko) · [`cloudflare-ai`](crates/cloudflare-ai) | standalone data-source clients |
+
 ## Getting started
 
 Bots use long polling: they pull updates from Telegram outbound, so no
