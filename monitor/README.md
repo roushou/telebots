@@ -35,6 +35,11 @@ monitor). Override with `MONITOR_API_URL` if the API lives elsewhere.
 | `MONITOR_ALERT_CHAT_ID` | Optional: chat to send alerts to (`@channel` or numeric id) |
 | `MONITOR_API_URL` | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`; set in `mise.toml` for the `web` task) |
 
+The alert vars are secrets: in the container they come from `monitor/.env`
+(copied from `.env.example` by `scripts/up.sh` on first run), not from
+`docker-compose.yml`. Locally, export them in your shell or drop them in
+`monitor/.env` before `mise run bot monitor`.
+
 ## API
 
 | Endpoint                          | Description                        |

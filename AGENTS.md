@@ -165,8 +165,8 @@ before writing deserializers; do not assume endpoint availability.
   CMake/Go/Perl/NASM — the CI Windows job guards this.
 - `scripts/up.sh` resolves the repo root from its own location (no
   `../..` paths, no CWD assumptions). First run copies
-  `bots/*/.env.example` → `bots/*/.env` and stops for you to fill secrets;
-  re-run to bring the stack up.
+  `bots/*/.env.example` and `monitor/.env.example` → their `.env` files and
+  stops for you to fill secrets; re-run to bring the stack up.
 - Docker build context excludes secrets (`.dockerignore`: `**/.env`,
   `bots/*/.env`); env reaches containers only via compose `env_file`.
 - Persistent bot data (SQLite) lives under `data/` — gitignored and

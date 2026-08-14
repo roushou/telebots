@@ -25,6 +25,7 @@ services:
     build:
       context: .
       dockerfile: monitor/Dockerfile
+    env_file: monitor/.env
     environment:
       MONITOR_BOTS: "degen=http://degen:9101/metrics,imagine=http://imagine:9102/metrics"
       MONITOR_DB_PATH: "/data/monitor.db"
