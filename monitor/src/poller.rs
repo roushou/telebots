@@ -6,7 +6,7 @@ use anyhow::Result;
 use futures::future::join_all;
 use serde_json::Value;
 
-use crate::{BotTarget, alerter::Alerter, db::Db};
+use crate::{BotTarget, alerter::Alerter, db::Db, stats::Stats};
 
 /// How often each bot's status is fetched.
 const POLL_INTERVAL: Duration = Duration::from_secs(30);
@@ -19,7 +19,7 @@ pub struct Poller;
 
 impl Poller {
     /// Poll `bots` every [`POLL_INTERVAL`] in the background.
-    pub fn spawn(bots: Vec<BotTarget>, db: Db, alerter: Option<Alerter>) {
+    pub fn spawn(bots: Vec<BotTarget>, db: Db, alerter: Option<Alerter>, stats: Stats) {
         tokio::spawn(async move {
             let client = reqwest::Client::builder()
                 .timeout(REQUEST_TIMEOUT)
@@ -28,12 +28,14 @@ impl Poller {
             let mut tick = tokio::time::interval(POLL_INTERVAL);
             loop {
                 tick.tick().await;
+                stats.note_poll_cycle().await;
                 // Poll concurrently so one slow bot doesn't delay the rest.
                 let futures = bots
                     .iter()
-                    .map(|target| Self::poll(&client, &db, &alerter, target));
+                    .map(|target| Self::poll(&client, &db, &alerter, &stats, target));
                 for (target, result) in bots.iter().zip(join_all(futures).await) {
                     if let Err(e) = result {
+                        stats.note_poll_error();
                         tracing::warn!("polling {} failed: {e:#}", target.name);
                     }
                 }
@@ -47,6 +49,7 @@ impl Poller {
         client: &reqwest::Client,
         db: &Db,
         alerter: &Option<Alerter>,
+        stats: &Stats,
         target: &BotTarget,
     ) -> Result<()> {
         let (status, error) = match client.get(&target.url).send().await {
@@ -60,6 +63,7 @@ impl Poller {
 
         db.insert_snapshot(&target.name, status.as_ref(), error.as_deref())
             .await?;
+        stats.note_snapshot();
         if let Some(alerter) = alerter {
             alerter
                 .observe(&target.name, status.as_ref(), error.as_deref())

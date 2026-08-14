@@ -6,6 +6,7 @@ mod api;
 mod db;
 mod health;
 mod poller;
+mod stats;
 
 use std::time::Duration;
 
@@ -141,7 +142,8 @@ async fn main() -> anyhow::Result<()> {
         _ => None,
     };
 
-    poller::Poller::spawn(config.bots.clone(), db.clone(), alerter);
+    let stats = stats::Stats::new();
+    poller::Poller::spawn(config.bots.clone(), db.clone(), alerter, stats.clone());
 
     // Prune snapshots past the retention window, at startup and daily.
     let retention_days = config.retention_days;
@@ -156,5 +158,5 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    api::serve(config.port, db).await
+    api::serve(config.port, db, stats, config.bots.len()).await
 }

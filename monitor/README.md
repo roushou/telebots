@@ -39,7 +39,8 @@ monitor). Override with `MONITOR_API_URL` if the API lives elsewhere.
 
 | Endpoint                          | Description                        |
 | --------------------------------- | ---------------------------------- |
-| `GET /healthz`                    | Monitor liveness                   |
+| `GET /healthz`                    | Monitor liveness (503 when the poller is stale) |
+| `GET /metrics`                    | The monitor's own runtime status |
 | `GET /api/bots`                   | Newest status snapshot per bot     |
 | `GET /api/bots/<name>/history?limit=100` | Recent snapshots, newest first |
 

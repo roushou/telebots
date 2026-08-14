@@ -7,8 +7,13 @@ import { BotTable } from "../../components/bot-table";
 import { HealthStrip } from "../../components/health-strip";
 import { StatCard } from "../../components/stat-card";
 import { Button } from "../../components/ui/button";
-import { fetchOverview, type Overview } from "../../lib/api";
-import { fmtStamp } from "../../lib/format";
+import {
+  fetchMonitorStatus,
+  fetchOverview,
+  type MonitorStatus,
+  type Overview,
+} from "../../lib/api";
+import { fmtAgo, fmtStamp } from "../../lib/format";
 import { healthOf } from "../../lib/health";
 
 export const Route = createFileRoute("/_app/")({
@@ -25,6 +30,7 @@ export const Route = createFileRoute("/_app/")({
 function OverviewPage() {
   const initial = Route.useLoaderData();
   const [data, setData] = useState<Overview>(initial);
+  const [monitor, setMonitor] = useState<MonitorStatus | null>(null);
   const [view, setView] = useState<"grid" | "table">("grid");
 
   useEffect(() => {
@@ -33,6 +39,12 @@ function OverviewPage() {
       try {
         const next = await fetchOverview();
         if (!cancelled) setData(next);
+      } catch {
+        // keep the previous state
+      }
+      try {
+        const status = await fetchMonitorStatus();
+        if (!cancelled) setMonitor(status);
       } catch {
         // keep the previous state
       }
@@ -57,7 +69,8 @@ function OverviewPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {data.bots.length} bot(s) monitored · polled every 30s
+            {data.bots.length} bot(s) monitored · monitor polled{" "}
+            {monitor ? fmtAgo(monitor.last_poll_ago_secs) : "…"} ago
           </p>
         </div>
 

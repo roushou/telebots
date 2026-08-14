@@ -41,6 +41,15 @@ export type BotDetail = {
   errors: { ts: number; end: number; message: string }[];
 };
 
+export type MonitorStatus = {
+  service: string;
+  uptime_secs: number;
+  bots_configured: number;
+  last_poll_ago_secs: number | null;
+  poll_errors_total: number;
+  snapshots_total: number;
+};
+
 const DEFAULT_API = "http://127.0.0.1:9110";
 const OVERVIEW_WINDOW_HOURS = 24;
 
@@ -98,3 +107,13 @@ export const fetchBotDetail = createServerFn({ method: "POST" })
     };
     return buildBotDetail(data.hours, history, latest);
   });
+
+/// The monitor's own runtime status.
+export const fetchMonitorStatus = createServerFn({ method: "GET" }).handler(
+  async (): Promise<MonitorStatus> => {
+    const resp = await fetch(`${apiBase()}/metrics`);
+    if (!resp.ok) throw new Error(`monitor metrics responded ${resp.status}`);
+    const data: unknown = await resp.json();
+    return data as MonitorStatus;
+  },
+);
