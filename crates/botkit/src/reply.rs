@@ -142,15 +142,30 @@ impl Supervisor {
         let metrics = self.metrics.clone();
         let mut join_set = self.inner.lock().await;
         join_set.spawn(async move {
-            // The job runs on its own task, so a panic surfaces as a
-            // JoinError instead of killing the delivery.
-            let handle = tokio::spawn((job.run)(ctx));
-            let result = tokio::time::timeout(job.timeout, handle).await;
-            let outcome = Self::job_outcome(result);
+            let outcome = Self::run_job(job, ctx).await;
             let failed = outcome.is_err();
             Self::deliver(&bot, &msg, &placeholder, outcome).await;
             metrics.job_finished(failed);
         });
+    }
+
+    /// Run a job under its deadline, aborting it if it overruns. The job
+    /// runs on its own task so a panic surfaces as a `JoinError` instead of
+    /// killing the delivery.
+    async fn run_job(job: Job, ctx: JobCtx) -> Result<Reply> {
+        let mut handle = tokio::spawn((job.run)(ctx));
+        let result = tokio::select! {
+            result = &mut handle => Ok(result),
+            _ = tokio::time::sleep(job.timeout) => Err(()),
+        };
+        match result {
+            Ok(result) => Self::job_outcome(Ok(result)),
+            Err(()) => {
+                handle.abort();
+                let _ = (&mut handle).await;
+                Err(anyhow!("background job timed out"))
+            }
+        }
     }
 
     /// Wait for in-flight jobs, up to `grace`; abandon the rest.
@@ -297,5 +312,33 @@ mod tests {
             .unwrap()
             .to_string();
         assert!(msg.contains("panicked"));
+    }
+
+    #[tokio::test]
+    async fn timed_out_job_is_aborted() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let dropped = Arc::new(AtomicBool::new(false));
+        let flag = dropped.clone();
+        let job = Job::new(Duration::from_millis(1), move |_ctx| {
+            Box::pin(async move {
+                struct Guard(Arc<AtomicBool>);
+                impl Drop for Guard {
+                    fn drop(&mut self) {
+                        self.0.store(true, Ordering::SeqCst);
+                    }
+                }
+                let _guard = Guard(flag);
+                std::future::pending::<()>().await;
+                Ok(Reply::Text(Block::new()))
+            })
+        });
+
+        let outcome = Supervisor::run_job(job, JobCtx { chat_id: 1, user_id: None }).await;
+        assert!(outcome.is_err());
+        assert!(
+            dropped.load(Ordering::SeqCst),
+            "a timed-out job's future should be dropped"
+        );
     }
 }
