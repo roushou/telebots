@@ -2,12 +2,13 @@
 //! shutdown. Bots build a [`Bot`], hand it their context, and call
 //! [`Bot::run`]; teloxide never appears in a bot's code.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use teloxide::{
     Bot as Api, RequestError,
     dispatching::{Dispatcher, UpdateFilterExt as _, UpdateHandler},
     dptree,
+    error_handlers::ErrorHandler,
     prelude::Requester,
     requests::ResponseResult,
     types::{BotCommand, Me, Message, Update},
@@ -91,9 +92,10 @@ impl Bot {
         Self::install_panic_hook(metrics.clone());
         Self::spawn_heartbeat(self.api.clone(), metrics.clone());
 
-        let supervisor = Supervisor::new(metrics);
+        let supervisor = Supervisor::new(metrics.clone());
         let mut dispatcher = Dispatcher::builder(self.api, Self::routes::<C>())
             .dependencies(dptree::deps![ctx, supervisor.clone()])
+            .error_handler(Self::dispatch_error_handler(metrics))
             .enable_ctrlc_handler()
             .build();
 
@@ -163,6 +165,18 @@ impl Bot {
                 }
             }
         });
+    }
+
+    /// The dispatcher's error handler: count delivery failures and log them.
+    fn dispatch_error_handler(
+        metrics: Metrics,
+    ) -> Arc<dyn ErrorHandler<RequestError> + Send + Sync> {
+        Arc::new(move |err: RequestError| {
+            metrics.note_dispatch_error();
+            async move {
+                tracing::warn!("update handling failed: {err}");
+            }
+        })
     }
 
     /// Resolves on SIGTERM (container stop/restart) or Ctrl+C (local dev).

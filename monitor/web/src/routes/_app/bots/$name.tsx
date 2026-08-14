@@ -116,13 +116,19 @@ function BotDetailPage() {
         <span className="text-xs text-muted-foreground">history stored at 30s intervals</span>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Uptime" value={status ? fmtUptime(status.uptime_secs) : "—"} />
+        <StatCard label="Commands" value={status?.commands_total ?? "—"} />
         <StatCard label="Jobs active" value={status?.jobs_active ?? "—"} />
         <StatCard
           label="Jobs failed"
           value={status?.jobs_failed_total ?? "—"}
           tone={status && status.jobs_failed_total > 0 ? "destructive" : "default"}
+        />
+        <StatCard
+          label="Dispatch errors"
+          value={status?.dispatch_errors_total ?? "—"}
+          tone={status && status.dispatch_errors_total > 0 ? "destructive" : "default"}
         />
         <StatCard
           label="Panics"

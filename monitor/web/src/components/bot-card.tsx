@@ -35,7 +35,8 @@ export function BotCard({ bot, segments }: { bot: BotSnapshot; segments: HealthS
             <div className="space-y-1 text-sm">
               <Row label="version" value={status.version} />
               <Row label="uptime" value={fmtUptime(status.uptime_secs)} />
-              <Row label="last update" value={fmtAgo(status.last_update_ago_secs)} />
+              <Row label="last command" value={fmtAgo(status.last_command_ago_secs)} />
+              <Row label="commands" value={String(status.commands_total)} />
               <Row
                 label="jobs"
                 value={`${status.jobs_active} active · ${status.jobs_failed_total} failed`}

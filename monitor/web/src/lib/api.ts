@@ -8,7 +8,9 @@ export type BotStatus = {
   uptime_secs: number;
   telegram: string;
   last_heartbeat_ago_secs: number | null;
-  last_update_ago_secs: number | null;
+  last_command_ago_secs: number | null;
+  commands_total: number;
+  dispatch_errors_total: number;
   jobs_active: number;
   jobs_failed_total: number;
   panics_total: number;

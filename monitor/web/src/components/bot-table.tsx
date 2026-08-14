@@ -45,7 +45,8 @@ export function BotTable({
             <TableHead>Status</TableHead>
             <TableHead>Version</TableHead>
             <TableHead>Uptime</TableHead>
-            <TableHead>Last update</TableHead>
+            <TableHead>Last command</TableHead>
+            <TableHead>Commands</TableHead>
             <TableHead>Jobs (active / failed)</TableHead>
             <TableHead>Panics</TableHead>
             <TableHead className="w-40">24h</TableHead>
@@ -70,8 +71,9 @@ export function BotTable({
                   {status ? fmtUptime(status.uptime_secs) : "—"}
                 </TableCell>
                 <TableCell className="tabular-nums">
-                  {status ? fmtAgo(status.last_update_ago_secs) : "—"}
+                  {status ? fmtAgo(status.last_command_ago_secs) : "—"}
                 </TableCell>
+                <TableCell className="tabular-nums">{status?.commands_total ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">
                   {status ? `${status.jobs_active} / ${status.jobs_failed_total}` : "—"}
                 </TableCell>
