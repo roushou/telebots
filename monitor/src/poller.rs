@@ -3,12 +3,16 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use futures::future::join_all;
 use serde_json::Value;
 
 use crate::{BotTarget, alerter::Alerter, db::Db};
 
 /// How often each bot's status is fetched.
 const POLL_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Per-request timeout, so one hung bot can't stall the poll loop.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The snapshot poller.
 pub struct Poller;
@@ -17,12 +21,19 @@ impl Poller {
     /// Poll `bots` every [`POLL_INTERVAL`] in the background.
     pub fn spawn(bots: Vec<BotTarget>, db: Db, alerter: Option<Alerter>) {
         tokio::spawn(async move {
-            let client = reqwest::Client::new();
+            let client = reqwest::Client::builder()
+                .timeout(REQUEST_TIMEOUT)
+                .build()
+                .expect("static client options");
             let mut tick = tokio::time::interval(POLL_INTERVAL);
             loop {
                 tick.tick().await;
-                for target in &bots {
-                    if let Err(e) = Self::poll(&client, &db, &alerter, target).await {
+                // Poll concurrently so one slow bot doesn't delay the rest.
+                let futures = bots
+                    .iter()
+                    .map(|target| Self::poll(&client, &db, &alerter, target));
+                for (target, result) in bots.iter().zip(join_all(futures).await) {
+                    if let Err(e) = result {
                         tracing::warn!("polling {} failed: {e:#}", target.name);
                     }
                 }
