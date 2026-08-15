@@ -16,6 +16,11 @@ export type BotStatus = {
   panics_total: number;
   /// Per-command counters (present once botkit exposes them).
   commands?: Record<string, { total: number; errors: number }>;
+  /// LLM token usage and cost counters (present once botkit exposes them).
+  llm_prompt_tokens_total?: number;
+  llm_completion_tokens_total?: number;
+  llm_requests_total?: number;
+  llm_cost_micro_usd_total?: number;
 };
 
 export type BotSnapshot = {
@@ -38,6 +43,10 @@ export type BotDetail = {
   panics: { ts: number; value: number | null }[];
   commands: { ts: number; value: number | null }[];
   dispatchErrors: { ts: number; value: number | null }[];
+  /// Per-poll LLM token delta (prompt + completion).
+  tokens: { ts: number; value: number | null }[];
+  /// Cumulative LLM cost in USD.
+  cost: { ts: number; value: number | null }[];
   commandBreakdown: { name: string; total: number; errors: number }[];
   restarts: { ts: number }[];
   deploys: { ts: number; from: string; to: string }[];

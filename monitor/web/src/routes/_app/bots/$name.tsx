@@ -8,7 +8,14 @@ import { StatusBadge } from "../../../components/status-badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { fetchBotDetail, type BotDetail } from "../../../lib/api";
-import { fmtDuration, fmtPct, fmtStamp, fmtUptime } from "../../../lib/format";
+import {
+  fmtCompact,
+  fmtCostUsd,
+  fmtDuration,
+  fmtPct,
+  fmtStamp,
+  fmtUptime,
+} from "../../../lib/format";
 import { healthOf } from "../../../lib/health";
 import { summarizeHealth } from "../../../lib/history";
 
@@ -43,6 +50,8 @@ function emptyDetail(name: string, hours: number): BotDetail {
     panics: [],
     commands: [],
     dispatchErrors: [],
+    tokens: [],
+    cost: [],
     commandBreakdown: [],
     restarts: [],
     deploys: [],
@@ -79,6 +88,7 @@ function BotDetailPage() {
   const status = latest.status;
   const health = healthOf(latest);
   const summary = summarizeHealth(data.segments);
+  const hasLlm = status ? (status.llm_requests_total ?? 0) > 0 : false;
 
   return (
     <div className="space-y-6">
@@ -147,6 +157,18 @@ function BotDetailPage() {
           value={status?.panics_total ?? "—"}
           tone={status && status.panics_total > 0 ? "destructive" : "default"}
         />
+        {hasLlm && status && (
+          <>
+            <StatCard
+              label="LLM tokens"
+              value={fmtCompact(
+                (status.llm_prompt_tokens_total ?? 0) + (status.llm_completion_tokens_total ?? 0),
+              )}
+            />
+            <StatCard label="LLM cost" value={fmtCostUsd(status.llm_cost_micro_usd_total ?? 0)} />
+            <StatCard label="LLM requests" value={status.llm_requests_total ?? 0} />
+          </>
+        )}
       </div>
 
       <Card>
@@ -214,6 +236,42 @@ function BotDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {hasLlm && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">LLM tokens</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CounterChart
+                points={data.tokens}
+                color="var(--ts-chart-4)"
+                height={200}
+                ariaLabel="LLM tokens per poll over time"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                prompt + completion tokens per 30s poll
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">LLM cost</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CounterChart
+                points={data.cost}
+                color="var(--ts-chart-6)"
+                height={200}
+                ariaLabel="Cumulative LLM cost over time"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">cumulative cost (USD)</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

@@ -144,6 +144,22 @@ export function buildBotDetail(
 
   const commands = deltas(sorted, (s) => s.commands_total);
   const dispatchErrors = deltas(sorted, (s) => s.dispatch_errors_total);
+  const tokens = deltas(sorted, (s) => {
+    const prompt = s.llm_prompt_tokens_total;
+    const completion = s.llm_completion_tokens_total;
+    if (prompt === undefined && completion === undefined) return undefined;
+    return (prompt ?? 0) + (completion ?? 0);
+  });
+  const cost = downsample(
+    sorted.map((s) => ({
+      ts: s.ts,
+      value:
+        s.status?.llm_cost_micro_usd_total !== undefined
+          ? s.status.llm_cost_micro_usd_total / 1_000_000
+          : null,
+    })),
+    400,
+  );
   const commandBreakdown = summarizeCommands(sorted);
 
   const restarts: { ts: number }[] = [];
@@ -195,6 +211,8 @@ export function buildBotDetail(
     panics,
     commands,
     dispatchErrors,
+    tokens,
+    cost,
     commandBreakdown,
     restarts,
     deploys,

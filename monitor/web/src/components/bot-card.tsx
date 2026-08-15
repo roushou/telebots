@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import type { BotSnapshot } from "../lib/api";
-import { fmtAgo, fmtDuration, fmtPct, fmtUptime } from "../lib/format";
+import { fmtAgo, fmtCompact, fmtCostUsd, fmtDuration, fmtPct, fmtUptime } from "../lib/format";
 import { healthOf } from "../lib/health";
 import { summarizeHealth, type HealthSegment } from "../lib/history";
 import { cn } from "../lib/utils";
@@ -48,6 +48,18 @@ export function BotCard({ bot, segments }: { bot: BotSnapshot; segments: HealthS
                 value={`${status.jobs_active} active · ${status.jobs_failed_total} failed`}
               />
               <Row label="panics" value={String(status.panics_total)} />
+              {(status.llm_requests_total ?? 0) > 0 && (
+                <>
+                  <Row
+                    label="LLM tokens"
+                    value={fmtCompact(
+                      (status.llm_prompt_tokens_total ?? 0) +
+                        (status.llm_completion_tokens_total ?? 0),
+                    )}
+                  />
+                  <Row label="LLM cost" value={fmtCostUsd(status.llm_cost_micro_usd_total ?? 0)} />
+                </>
+              )}
             </div>
           ) : (
             <p className={cn("text-sm text-muted-foreground")}>

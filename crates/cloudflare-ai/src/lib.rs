@@ -9,4 +9,6 @@ mod types;
 
 pub use client::CloudflareAiClient;
 pub use error::Error;
-pub use types::{ChatCompletion, ChatMessage, GeneratedImage, Input, Model, Role, TextModel};
+pub use types::{
+    ChatCompletion, ChatMessage, GeneratedImage, Input, Model, Role, TextModel, Usage,
+};

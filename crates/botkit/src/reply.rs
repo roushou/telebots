@@ -116,6 +116,8 @@ impl Job {
 pub struct JobCtx {
     pub chat_id: i64,
     pub user_id: Option<i64>,
+    /// Report LLM token usage and cost into the bot's metrics.
+    pub usage: crate::metrics::UsageReporter,
 }
 
 #[cfg(test)]

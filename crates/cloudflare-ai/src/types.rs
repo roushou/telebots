@@ -193,11 +193,21 @@ impl ChatMessage {
     }
 }
 
+/// Token usage reported by a text-generation response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Usage {
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+    pub total_tokens: u64,
+}
+
 /// A completed text generation, normalized to plain text so consumers never
 /// deal with provider transport details.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatCompletion {
     pub text: String,
+    /// Token usage, when the provider reported it.
+    pub usage: Option<Usage>,
 }
 
 /// A Cloudflare Workers AI text-generation model.

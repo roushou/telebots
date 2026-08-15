@@ -38,6 +38,14 @@ pub struct Health {
     pub jobs_active: usize,
     pub jobs_failed_total: u64,
     pub panics_total: u64,
+    /// Total prompt (input) tokens across LLM requests.
+    pub llm_prompt_tokens_total: u64,
+    /// Total completion (output) tokens across LLM requests.
+    pub llm_completion_tokens_total: u64,
+    /// Number of LLM requests made.
+    pub llm_requests_total: u64,
+    /// Cumulative LLM cost in micro-USD (millionths of a dollar).
+    pub llm_cost_micro_usd_total: u64,
     pub commands: HashMap<&'static str, CommandHealth>,
 }
 
@@ -62,7 +70,36 @@ pub struct Metrics {
     jobs_active: Arc<AtomicUsize>,
     jobs_failed: Arc<AtomicU64>,
     panics: Arc<AtomicU64>,
+    llm_prompt_tokens: Arc<AtomicU64>,
+    llm_completion_tokens: Arc<AtomicU64>,
+    llm_requests: Arc<AtomicU64>,
+    llm_cost_micro_usd: Arc<AtomicU64>,
     commands: Arc<Mutex<HashMap<&'static str, CommandStats>>>,
+}
+
+/// A cheap-to-clone handle for reporting LLM usage from background jobs.
+///
+/// Cost is caller-computed (in micro-USD) because pricing is model-specific
+/// and lives outside the framework.
+#[derive(Clone)]
+pub struct UsageReporter {
+    prompt_tokens: Arc<AtomicU64>,
+    completion_tokens: Arc<AtomicU64>,
+    requests: Arc<AtomicU64>,
+    cost_micro_usd: Arc<AtomicU64>,
+}
+
+impl UsageReporter {
+    /// Record one LLM request's token usage and cost.
+    pub fn report(&self, prompt_tokens: u64, completion_tokens: u64, cost_micro_usd: u64) {
+        self.prompt_tokens
+            .fetch_add(prompt_tokens, Ordering::Relaxed);
+        self.completion_tokens
+            .fetch_add(completion_tokens, Ordering::Relaxed);
+        self.requests.fetch_add(1, Ordering::Relaxed);
+        self.cost_micro_usd
+            .fetch_add(cost_micro_usd, Ordering::Relaxed);
+    }
 }
 
 impl Metrics {
@@ -80,7 +117,21 @@ impl Metrics {
             jobs_active: Arc::new(AtomicUsize::new(0)),
             jobs_failed: Arc::new(AtomicU64::new(0)),
             panics: Arc::new(AtomicU64::new(0)),
+            llm_prompt_tokens: Arc::new(AtomicU64::new(0)),
+            llm_completion_tokens: Arc::new(AtomicU64::new(0)),
+            llm_requests: Arc::new(AtomicU64::new(0)),
+            llm_cost_micro_usd: Arc::new(AtomicU64::new(0)),
             commands: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// A handle for reporting LLM usage, sharing this metrics' counters.
+    pub fn usage_reporter(&self) -> UsageReporter {
+        UsageReporter {
+            prompt_tokens: self.llm_prompt_tokens.clone(),
+            completion_tokens: self.llm_completion_tokens.clone(),
+            requests: self.llm_requests.clone(),
+            cost_micro_usd: self.llm_cost_micro_usd.clone(),
         }
     }
 
@@ -184,6 +235,10 @@ impl Metrics {
             jobs_active: self.jobs_active.load(Ordering::Relaxed),
             jobs_failed_total: self.jobs_failed.load(Ordering::Relaxed),
             panics_total: self.panics.load(Ordering::Relaxed),
+            llm_prompt_tokens_total: self.llm_prompt_tokens.load(Ordering::Relaxed),
+            llm_completion_tokens_total: self.llm_completion_tokens.load(Ordering::Relaxed),
+            llm_requests_total: self.llm_requests.load(Ordering::Relaxed),
+            llm_cost_micro_usd_total: self.llm_cost_micro_usd.load(Ordering::Relaxed),
             commands,
         }
     }
@@ -255,5 +310,18 @@ mod tests {
         assert_eq!(h.commands["price"].errors, 1);
         assert_eq!(h.commands["info"].total, 1);
         assert_eq!(h.commands["info"].errors, 0);
+    }
+
+    #[test]
+    fn usage_reporter_accumulates_tokens_and_cost() {
+        let m = Metrics::new("test", "0.1.0");
+        let usage = m.usage_reporter();
+        usage.report(10, 20, 500);
+        usage.report(5, 15, 250);
+        let h = m.health();
+        assert_eq!(h.llm_prompt_tokens_total, 15);
+        assert_eq!(h.llm_completion_tokens_total, 35);
+        assert_eq!(h.llm_requests_total, 2);
+        assert_eq!(h.llm_cost_micro_usd_total, 750);
     }
 }

@@ -12,6 +12,7 @@ use crate::{
     commands::Ctx,
     conversation::Conversation,
     cooldown::{COOLDOWN_SECS, Cooldown},
+    pricing::Pricing,
     render,
 };
 
@@ -82,14 +83,21 @@ impl MessageHandler for Chat {
             placeholder: "✍️ thinking…".to_string(),
             job: Job::new(JOB_TIMEOUT, move |job| {
                 Box::pin(async move {
-                    let answer = generator.chat(model, &messages).await?;
+                    let completion = generator.chat(model, &messages).await?;
+                    if let Some(usage) = &completion.usage {
+                        job.usage.report(
+                            usage.prompt_tokens,
+                            usage.completion_tokens,
+                            Pricing::cost_micro_usd(model, usage),
+                        );
+                    }
                     if let Err(e) = storage
-                        .add_message(job.chat_id, job.user_id, "assistant", &answer)
+                        .add_message(job.chat_id, job.user_id, "assistant", &completion.text)
                         .await
                     {
                         tracing::warn!("failed to record assistant reply: {e:#}");
                     }
-                    Ok(Reply::Edit(render::answer(&answer)))
+                    Ok(Reply::Edit(render::answer(&completion.text)))
                 })
             }),
         }))

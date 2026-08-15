@@ -4,6 +4,7 @@ mod conversation;
 mod cooldown;
 mod generator;
 mod message;
+mod pricing;
 mod render;
 mod store;
 

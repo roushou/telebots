@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use crate::{
     error::Error,
-    types::{ChatCompletion, ChatMessage, GeneratedImage, Input, Model, TextModel},
+    types::{ChatCompletion, ChatMessage, GeneratedImage, Input, Model, TextModel, Usage},
 };
 
 const API_BASE: &str = "https://api.cloudflare.com/client/v4";
@@ -190,7 +190,7 @@ impl CloudflareAiClient {
     /// Decode a Workers AI text-generation response:
     ///
     /// ```json
-    /// {"result":{"response":"<text>"},"success":true,"errors":[],"messages":[]}
+    /// {"result":{"response":"<text>","usage":{...}},"success":true,...}
     /// ```
     fn decode_chat(bytes: &[u8]) -> Result<ChatCompletion, Error> {
         let v: Value = serde_json::from_slice(bytes)?;
@@ -207,9 +207,35 @@ impl CloudflareAiClient {
             .and_then(Value::as_str)
             .ok_or(Error::MissingResponse)?;
 
+        let usage = v
+            .get("result")
+            .and_then(|r| r.get("usage"))
+            .map(Self::parse_usage);
+
         Ok(ChatCompletion {
             text: text.to_string(),
+            usage,
         })
+    }
+
+    /// Parse the optional `result.usage` object; absent fields default to
+    /// zero and a missing `total_tokens` is derived from the parts.
+    fn parse_usage(u: &Value) -> Usage {
+        let prompt = u.get("prompt_tokens").and_then(Value::as_u64).unwrap_or(0);
+        let completion = u
+            .get("completion_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let total = u.get("total_tokens").and_then(Value::as_u64).unwrap_or(0);
+        Usage {
+            prompt_tokens: prompt,
+            completion_tokens: completion,
+            total_tokens: if total > 0 {
+                total
+            } else {
+                prompt + completion
+            },
+        }
     }
 
     /// Pull the `errors[0].message` from a Cloudflare JSON error envelope.
@@ -311,6 +337,26 @@ mod tests {
             br#"{"result":{"response":"Hello, World!"},"success":true,"errors":[],"messages":[]}"#;
         let chat = CloudflareAiClient::decode_chat(body)?;
         assert_eq!(chat.text, "Hello, World!");
+        assert_eq!(chat.usage, None);
+        Ok(())
+    }
+
+    #[test]
+    fn decodes_chat_usage() -> Result<(), Error> {
+        let body = br#"{"result":{"response":"hi","usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}},"success":true,"errors":[],"messages":[]}"#;
+        let chat = CloudflareAiClient::decode_chat(body)?;
+        let usage = chat.usage.expect("usage present");
+        assert_eq!(usage.prompt_tokens, 10);
+        assert_eq!(usage.completion_tokens, 20);
+        assert_eq!(usage.total_tokens, 30);
+        Ok(())
+    }
+
+    #[test]
+    fn derives_total_tokens_when_missing() -> Result<(), Error> {
+        let body = br#"{"result":{"response":"hi","usage":{"prompt_tokens":10,"completion_tokens":20}},"success":true,"errors":[],"messages":[]}"#;
+        let chat = CloudflareAiClient::decode_chat(body)?;
+        assert_eq!(chat.usage.expect("usage present").total_tokens, 30);
         Ok(())
     }
 

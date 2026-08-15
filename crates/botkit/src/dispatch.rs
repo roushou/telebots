@@ -57,6 +57,11 @@ impl Supervisor {
         self.metrics.health()
     }
 
+    /// A handle for reporting LLM usage from background jobs.
+    pub(crate) fn usage_reporter(&self) -> crate::metrics::UsageReporter {
+        self.metrics.usage_reporter()
+    }
+
     /// Run `job` in the background; deliver its reply (or a uniform error)
     /// and clean up the placeholder.
     pub(crate) async fn spawn<M: Messenger>(
@@ -224,6 +229,7 @@ where
             let ctx = JobCtx {
                 chat_id: chat.0,
                 user_id,
+                usage: supervisor.usage_reporter(),
             };
             supervisor
                 .spawn(job, ctx, messenger.clone(), chat, reply_to, placeholder_id)
@@ -447,11 +453,13 @@ mod tests {
             })
         });
 
+        let metrics = Metrics::new("test", "0.1.0");
         let outcome = Supervisor::run_job(
             job,
             JobCtx {
                 chat_id: 1,
                 user_id: None,
+                usage: metrics.usage_reporter(),
             },
         )
         .await;

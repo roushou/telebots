@@ -129,6 +129,7 @@ pub use guard::{Guard, NoGuard};
 pub use inline::{InlineAnswer, InlineHandler, InlineRequest, InlineResult};
 pub use markup::{Button, Markup};
 pub use message::{MessageHandler, MessageRequest};
+pub use metrics::UsageReporter;
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{ChatKind, Request};
 pub use router::Router;

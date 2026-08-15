@@ -2,11 +2,11 @@
 //!
 //! Bots depend on this enum, never on a provider crate directly. Each
 //! variant wraps a provider client; [`Generator::chat`] normalizes the
-//! provider's output to plain text, so swapping providers only touches this
-//! module and the `Ctx` wiring.
+//! provider's output to a [`ChatCompletion`], so swapping providers only
+//! touches this module and the `Ctx` wiring.
 
 use anyhow::Result;
-use cloudflare_ai::{ChatMessage, CloudflareAiClient, TextModel};
+use cloudflare_ai::{ChatCompletion, ChatMessage, CloudflareAiClient, TextModel};
 
 /// The configured text-generation provider.
 #[derive(Clone)]
@@ -21,10 +21,11 @@ impl Generator {
         )?))
     }
 
-    /// Complete the conversation with `model`, returning the assistant reply.
-    pub async fn chat(&self, model: TextModel, messages: &[ChatMessage]) -> Result<String> {
+    /// Complete the conversation with `model`, returning the reply text and
+    /// any reported token usage.
+    pub async fn chat(&self, model: TextModel, messages: &[ChatMessage]) -> Result<ChatCompletion> {
         match self {
-            Generator::Cloudflare(client) => Ok(client.chat(model, messages).await?.text),
+            Generator::Cloudflare(client) => Ok(client.chat(model, messages).await?),
         }
     }
 }

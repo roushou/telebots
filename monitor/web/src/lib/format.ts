@@ -57,3 +57,16 @@ export function fmtCompact(n: number): string {
     maximumFractionDigits: 1,
   }).format(n);
 }
+
+/// Token counts use the same compact notation ("1.2K").
+export function fmtTokens(n: number): string {
+  return fmtCompact(n);
+}
+
+/// Cost in micro-USD (millionths of a dollar) to a readable USD string.
+export function fmtCostUsd(microUsd: number): string {
+  const usd = microUsd / 1_000_000;
+  if (usd <= 0) return "$0";
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(4)}`;
+}
