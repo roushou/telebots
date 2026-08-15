@@ -63,6 +63,8 @@
 //!   by an [`InlineHandler`] returning [`InlineAnswer`].
 //! - `.callback(handler)` — inline-keyboard button taps, handled by a
 //!   [`CallbackHandler`] that can edit the message or send a new one.
+//! - `.message(handler)` — free-form text messages not consumed by a
+//!   command branch, handled by a [`MessageHandler`].
 //! - `.stats()` — the built-in `/stats` admin command (the bot's own
 //!   metrics).
 //!
@@ -107,6 +109,7 @@ mod guard;
 mod health;
 mod inline;
 mod markup;
+mod message;
 mod messenger;
 mod metrics;
 mod reply;
@@ -125,6 +128,7 @@ pub use error::Error;
 pub use guard::{Guard, NoGuard};
 pub use inline::{InlineAnswer, InlineHandler, InlineRequest, InlineResult};
 pub use markup::{Button, Markup};
+pub use message::{MessageHandler, MessageRequest};
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{ChatKind, Request};
 pub use router::Router;

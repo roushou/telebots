@@ -14,7 +14,7 @@
 bun = "1"
 
 [env]
-MONITOR_BOTS = "degen=http://localhost:9101/metrics,imagine=http://localhost:9102/metrics"
+MONITOR_BOTS = "degen=http://localhost:9101/metrics,imagine=http://localhost:9102/metrics,bud=http://localhost:9103/metrics"
 
 [tasks.rust-fmt]
 description = "Check Rust formatting"
@@ -49,8 +49,8 @@ depends = ["fmt", "lint"]
 run = ["cargo test --workspace", "cargo build --workspace"]
 
 [tasks.bot]
-description = "Run a workspace binary locally with its dev token from .env (degen, imagine, monitor)"
-usage = 'arg "<bot>" help="Workspace binary to run (degen, imagine, monitor)"'
+description = "Run a workspace binary locally with its dev token from .env (degen, imagine, bud, monitor)"
+usage = 'arg "<bot>" help="Workspace binary to run (degen, imagine, bud, monitor)"'
 run = "cargo run -p {{usage.bot}}"
 
 [tasks.up]
@@ -77,7 +77,7 @@ run = "bun run fmt:check"
 
 [tasks.logs]
 description = "Follow a container's logs"
-usage = 'arg "<bot>" help="Container name (degen, imagine, monitor)"'
+usage = 'arg "<bot>" help="Container name (degen, imagine, bud, monitor)"'
 run = "docker compose logs -f {{usage.bot}}"
 
 [tasks.default]

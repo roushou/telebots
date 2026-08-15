@@ -1,0 +1,17 @@
+[package]
+name = "bud"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+botkit.workspace = true
+cloudflare-ai.workspace = true
+config.workspace = true
+dotenvy.workspace = true
+serde.workspace = true
+storage.workspace = true
+telebots-core.workspace = true
+tokio.workspace = true
+tracing.workspace = true

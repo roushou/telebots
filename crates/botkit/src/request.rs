@@ -43,15 +43,20 @@ impl Request {
             chat_id: msg.chat.id.0,
             user_id: msg.from.as_ref().map(|user| user.id.0 as i64),
             username: msg.from.as_ref().and_then(|user| user.username.clone()),
-            chat_kind: match &msg.chat.kind {
-                teloxide::types::ChatKind::Private(_) => ChatKind::Private,
-                teloxide::types::ChatKind::Public(public) => match &public.kind {
-                    teloxide::types::PublicChatKind::Group => ChatKind::Group,
-                    teloxide::types::PublicChatKind::Supergroup(_) => ChatKind::Supergroup,
-                    teloxide::types::PublicChatKind::Channel(_) => ChatKind::Channel,
-                },
-            },
+            chat_kind: chat_kind(&msg.chat.kind),
             reply_to_message_id: msg.reply_to_message().map(|reply| reply.id.0),
         }
+    }
+}
+
+/// Map a Telegram chat kind to the teloxide-free [`ChatKind`].
+pub(crate) fn chat_kind(kind: &teloxide::types::ChatKind) -> ChatKind {
+    match kind {
+        teloxide::types::ChatKind::Private(_) => ChatKind::Private,
+        teloxide::types::ChatKind::Public(public) => match &public.kind {
+            teloxide::types::PublicChatKind::Group => ChatKind::Group,
+            teloxide::types::PublicChatKind::Supergroup(_) => ChatKind::Supergroup,
+            teloxide::types::PublicChatKind::Channel(_) => ChatKind::Channel,
+        },
     }
 }

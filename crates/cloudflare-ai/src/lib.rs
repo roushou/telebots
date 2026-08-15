@@ -1,7 +1,7 @@
-//! Cloudflare Workers AI client — image generation (free tier).
+//! Cloudflare Workers AI client — image generation and text generation.
 //!
-//! [`CloudflareAiClient`] performs the requests; the generated image type
-//! lives in [`types`].
+//! [`CloudflareAiClient`] performs the requests; the generated-image and
+//! chat types live in [`types`].
 
 mod client;
 mod error;
@@ -9,4 +9,4 @@ mod types;
 
 pub use client::CloudflareAiClient;
 pub use error::Error;
-pub use types::{GeneratedImage, Input, Model};
+pub use types::{ChatCompletion, ChatMessage, GeneratedImage, Input, Model, Role, TextModel};

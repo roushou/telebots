@@ -6,6 +6,7 @@ A bunch of Telegram bots to make Telegram better.
 | -------------------- | --------------------------------------------- |
 | [`degen`](bots/degen)   | cryptocurrency bot                           |
 | [`imagine`](bots/imagine) | AI image generation from prompts           |
+| [`bud`](bots/bud)     | AI chat bot (talk to it like ChatGPT)         |
 | [`monitor`](monitor) | admin dashboard: per-bot status + history     |
 
 Library crates shared by the bots:

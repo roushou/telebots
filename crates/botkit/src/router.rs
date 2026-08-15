@@ -15,6 +15,7 @@ use crate::{
     dispatch::{MAX_MESSAGE_LEN, Supervisor, dispatch},
     guard::{Guard, NoGuard},
     inline::{InlineHandler, InlineRequest},
+    message::{MessageHandler, MessageRequest},
     messenger::Messenger,
     reply::Reply,
     request::Request,
@@ -79,6 +80,20 @@ impl<Ctx: Clone + Send + Sync + 'static> Router<Ctx> {
     {
         self.branches
             .push(Box::new(move || callback_branch(handler)));
+        self
+    }
+
+    /// Handle free-form text messages not consumed by a command branch.
+    ///
+    /// Register this **after** `.command()` so `/command` messages are
+    /// parsed first and never leak into the message handler. The handler
+    /// may return `None` to stay silent.
+    pub fn message<H>(mut self, handler: H) -> Self
+    where
+        H: MessageHandler<Ctx = Ctx>,
+    {
+        self.branches
+            .push(Box::new(move || message_branch(handler)));
         self
     }
 
@@ -157,6 +172,89 @@ where
             Box::pin(async move { handle_callback(query, bot, ctx, supervisor, handler).await })
         },
     )
+}
+
+/// The message branch: turn any text message into a [`MessageRequest`] and
+/// hand it to the handler. Non-text messages and messages without a bot
+/// mention fall through to later branches (none by default).
+fn message_branch<H>(handler: H) -> UpdateHandler<RequestError>
+where
+    H: MessageHandler,
+{
+    Update::filter_message()
+        .filter_map(|msg: Message, me: Me| {
+            let text = msg.text().or_else(|| msg.caption())?.to_string();
+            let mentioned = me
+                .user
+                .username
+                .as_deref()
+                .map(|name| {
+                    text.to_lowercase()
+                        .contains(&format!("@{name}").to_lowercase())
+                })
+                .unwrap_or(false);
+            let replied_to_bot = msg
+                .reply_to_message()
+                .and_then(|reply| reply.from.as_ref())
+                .map(|user| user.id == me.user.id)
+                .unwrap_or(false);
+            let req = MessageRequest {
+                text,
+                chat_id: msg.chat.id.0,
+                user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
+                username: msg.from.as_ref().and_then(|u| u.username.clone()),
+                chat_kind: crate::request::chat_kind(&msg.chat.kind),
+                reply_to_message_id: msg.reply_to_message().map(|reply| reply.id.0),
+                mentioned,
+                replied_to_bot,
+            };
+            Some(req)
+        })
+        .endpoint(
+            move |req: MessageRequest,
+                  bot: Api,
+                  msg: Message,
+                  ctx: H::Ctx,
+                  supervisor: Supervisor| {
+                let handler = handler.clone();
+                Box::pin(
+                    async move { handle_message(req, bot, msg, ctx, supervisor, handler).await },
+                )
+            },
+        )
+}
+
+/// The message endpoint: run the handler and dispatch its reply (or silence,
+/// or a uniform error).
+async fn handle_message<H>(
+    req: MessageRequest,
+    bot: Api,
+    msg: Message,
+    ctx: H::Ctx,
+    supervisor: Supervisor,
+    handler: H,
+) -> ResponseResult<()>
+where
+    H: MessageHandler,
+{
+    let chat = msg.chat.id;
+    let reply_to = msg.id;
+    let user_id = msg.from.as_ref().map(|u| u.id.0 as i64);
+    match handler.handle(&ctx, &req).await {
+        Ok(Some(reply)) => {
+            supervisor.note_command_named("message");
+            dispatch(&bot, chat, reply_to, user_id, &supervisor, async {
+                Ok(reply)
+            })
+            .await
+        }
+        Ok(None) => Ok(()),
+        Err(e) => {
+            supervisor.note_command_named("message");
+            supervisor.note_command_error("message");
+            dispatch(&bot, chat, reply_to, user_id, &supervisor, async { Err(e) }).await
+        }
+    }
 }
 
 /// The callback endpoint: run the handler, edit or send its reply, and

@@ -21,13 +21,25 @@ services:
       - ./data/imagine:/data
     restart: unless-stopped
 
+  bud:
+    build:
+      context: .
+      dockerfile: bots/bud/Dockerfile
+    env_file: bots/bud/.env
+    environment:
+      TELEBOTS_METRICS_PORT: "9103"
+      BUD_DB_PATH: "/data/bud.db"
+    volumes:
+      - ./data/bud:/data
+    restart: unless-stopped
+
   monitor:
     build:
       context: .
       dockerfile: monitor/Dockerfile
     env_file: monitor/.env
     environment:
-      MONITOR_BOTS: "degen=http://degen:9101/metrics,imagine=http://imagine:9102/metrics"
+      MONITOR_BOTS: "degen=http://degen:9101/metrics,imagine=http://imagine:9102/metrics,bud=http://bud:9103/metrics"
       MONITOR_DB_PATH: "/data/monitor.db"
       MONITOR_PORT: "9110"
     volumes:

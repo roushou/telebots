@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["bots/degen", "bots/imagine", "crates/botkit", "crates/botkit-derive", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage", "monitor"]
+members = ["bots/degen", "bots/imagine", "bots/bud", "crates/botkit", "crates/botkit-derive", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage", "monitor"]
 
 [workspace.package]
 version = "0.1.0"

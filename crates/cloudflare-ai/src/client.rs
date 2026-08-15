@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use crate::{
     error::Error,
-    types::{GeneratedImage, Input, Model},
+    types::{ChatCompletion, ChatMessage, GeneratedImage, Input, Model, TextModel},
 };
 
 const API_BASE: &str = "https://api.cloudflare.com/client/v4";
@@ -142,6 +142,76 @@ impl CloudflareAiClient {
         Ok(GeneratedImage { bytes, mime })
     }
 
+    /// Run a text-generation (chat) request with the given `messages` using
+    /// `model`, returning the assistant's reply. Requests use Cloudflare's
+    /// recommended scoped-prompt format (`{"messages":[…]}`).
+    pub async fn chat(
+        &self,
+        model: TextModel,
+        messages: &[ChatMessage],
+    ) -> Result<ChatCompletion, Error> {
+        let url = format!(
+            "{API_BASE}/accounts/{}/ai/run/{}",
+            self.account_id,
+            model.path()
+        );
+        let body = json!({ "messages": messages
+            .iter()
+            .map(|m| json!({ "role": m.role.as_str(), "content": m.content }))
+            .collect::<Vec<_>>() });
+        let started = Instant::now();
+        tracing::debug!(model = %model, messages = messages.len(), "sending chat request");
+        let resp = self
+            .http
+            .post(url)
+            .bearer_auth(&self.api_token)
+            .json(&body)
+            .send()
+            .await?;
+        tracing::debug!(
+            status = resp.status().as_u16(),
+            elapsed = ?started.elapsed(),
+            "chat request completed"
+        );
+
+        let status = resp.status();
+        let bytes = resp.bytes().await?;
+
+        if !status.is_success() {
+            return Err(Error::Api {
+                status: status.as_u16(),
+                detail: Self::error_detail(&bytes).unwrap_or_default(),
+            });
+        }
+
+        Self::decode_chat(&bytes)
+    }
+
+    /// Decode a Workers AI text-generation response:
+    ///
+    /// ```json
+    /// {"result":{"response":"<text>"},"success":true,"errors":[],"messages":[]}
+    /// ```
+    fn decode_chat(bytes: &[u8]) -> Result<ChatCompletion, Error> {
+        let v: Value = serde_json::from_slice(bytes)?;
+
+        if !v.get("success").and_then(Value::as_bool).unwrap_or(false) {
+            return Err(Error::NotSuccess {
+                detail: Self::error_detail(bytes).unwrap_or_default(),
+            });
+        }
+
+        let text = v
+            .get("result")
+            .and_then(|r| r.get("response"))
+            .and_then(Value::as_str)
+            .ok_or(Error::MissingResponse)?;
+
+        Ok(ChatCompletion {
+            text: text.to_string(),
+        })
+    }
+
     /// Pull the `errors[0].message` from a Cloudflare JSON error envelope.
     fn error_detail(bytes: &[u8]) -> Option<String> {
         let v: Value = serde_json::from_slice(bytes).ok()?;
@@ -233,5 +303,27 @@ mod tests {
     #[test]
     fn no_message_when_envelope_is_irregular() {
         assert_eq!(CloudflareAiClient::error_detail(b"not json"), None);
+    }
+
+    #[test]
+    fn decodes_chat_response() -> Result<(), Error> {
+        let body =
+            br#"{"result":{"response":"Hello, World!"},"success":true,"errors":[],"messages":[]}"#;
+        let chat = CloudflareAiClient::decode_chat(body)?;
+        assert_eq!(chat.text, "Hello, World!");
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_chat_with_success_false() {
+        let body = br#"{"result":{},"success":false,"errors":[{"code":10000,"message":"model not found"}],"messages":[]}"#;
+        let err = CloudflareAiClient::decode_chat(body).unwrap_err();
+        assert!(err.to_string().contains("model not found"));
+    }
+
+    #[test]
+    fn rejects_chat_missing_response() {
+        let body = br#"{"result":{},"success":true,"errors":[],"messages":[]}"#;
+        assert!(CloudflareAiClient::decode_chat(body).is_err());
     }
 }
