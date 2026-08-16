@@ -7,7 +7,7 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering},
     },
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::Instant,
 };
 
 use serde::Serialize;
@@ -104,7 +104,7 @@ impl UsageReporter {
 
 impl Metrics {
     pub fn new(service: &'static str, version: &'static str) -> Self {
-        let now = Self::now_unix();
+        let now = telebots_core::Time::now_secs();
         Self {
             service,
             version,
@@ -139,7 +139,7 @@ impl Metrics {
     pub fn heartbeat_ok(&self) {
         self.telegram_ok.store(true, Ordering::Relaxed);
         self.last_heartbeat
-            .store(Self::now_unix(), Ordering::Relaxed);
+            .store(telebots_core::Time::now_secs(), Ordering::Relaxed);
     }
 
     /// A Telegram heartbeat failed (transient failures self-heal; the
@@ -150,7 +150,8 @@ impl Metrics {
 
     /// A command was dispatched.
     pub fn note_command(&self) {
-        self.last_command.store(Self::now_unix(), Ordering::Relaxed);
+        self.last_command
+            .store(telebots_core::Time::now_secs(), Ordering::Relaxed);
         self.commands_total.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -202,7 +203,7 @@ impl Metrics {
 
     /// The current status snapshot.
     pub fn health(&self) -> Health {
-        let now = Self::now_unix();
+        let now = telebots_core::Time::now_secs();
         let ago = |t: i64| Some((now - t).max(0));
         let commands = self
             .commands
@@ -245,14 +246,8 @@ impl Metrics {
 
     /// Liveness: a heartbeat was seen recently.
     pub fn alive(&self) -> bool {
-        self.last_heartbeat.load(Ordering::Relaxed) + STALE_AFTER_SECS >= Self::now_unix()
-    }
-
-    fn now_unix() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
+        self.last_heartbeat.load(Ordering::Relaxed) + STALE_AFTER_SECS
+            >= telebots_core::Time::now_secs()
     }
 }
 

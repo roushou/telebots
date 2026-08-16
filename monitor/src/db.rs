@@ -1,10 +1,7 @@
 //! Snapshot storage: the monitor's `snapshots` table on top of the shared
 //! [`storage`] connection.
 
-use std::{
-    path::Path,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::path::Path;
 
 use anyhow::Result;
 use serde_json::Value;
@@ -64,7 +61,7 @@ impl Db {
                 "INSERT INTO snapshots (bot, ts, status, error) VALUES (?1, ?2, ?3, ?4)",
                 &[
                     SqlValue::Text(bot.to_string()),
-                    SqlValue::Integer(Self::now_unix()),
+                    SqlValue::Integer(telebots_core::Time::now_secs()),
                     status.map_or(SqlValue::Null, |s| SqlValue::Text(s.to_string())),
                     error.map_or(SqlValue::Null, |e| SqlValue::Text(e.to_string())),
                 ],
@@ -75,7 +72,7 @@ impl Db {
 
     /// Delete snapshots older than `days`.
     pub async fn prune(&self, days: u64) -> Result<()> {
-        let cutoff = Self::now_unix() - (days as i64) * 86_400;
+        let cutoff = telebots_core::Time::now_secs() - (days as i64) * 86_400;
         self.storage
             .execute(
                 "DELETE FROM snapshots WHERE ts < ?1",
@@ -124,13 +121,6 @@ impl Db {
             error: row.get(3)?,
         })
     }
-
-    fn now_unix() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
-    }
 }
 
 #[cfg(test)]
@@ -140,7 +130,7 @@ mod tests {
     #[tokio::test]
     async fn prune_removes_snapshots_older_than_retention() -> Result<()> {
         let db = Db::open(":memory:").await?;
-        let now = Db::now_unix();
+        let now = telebots_core::Time::now_secs();
         for ts in [now - 31 * 86_400, now - 10, now] {
             db.storage
                 .execute(

@@ -1,7 +1,5 @@
 //! Imagine's database: the per-user cooldown and the generation history.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use anyhow::Result;
 use storage::{Migration, Storage, Value};
 
@@ -88,7 +86,7 @@ impl Store {
         model: &str,
         jpeg: Option<&[u8]>,
     ) -> Result<()> {
-        let created_at = Self::now_secs();
+        let created_at = telebots_core::Time::now_secs();
         self.storage
             .execute(
                 "INSERT INTO generations (chat_id, user_id, prompt, model, jpeg, created_at)
@@ -123,12 +121,5 @@ impl Store {
                 },
             )
             .await?)
-    }
-
-    fn now_secs() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
     }
 }

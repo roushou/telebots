@@ -1,7 +1,5 @@
 //! Per-user rate limiting for free-form chat.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use anyhow::Result;
 
 use crate::store::Store;
@@ -22,7 +20,7 @@ impl Cooldown {
         chat_id: i64,
         user_id: i64,
     ) -> Result<Option<i64>> {
-        let now = Self::now_secs();
+        let now = telebots_core::Time::now_secs();
         if let Some(last) = store.cooldown(chat_id, user_id).await?
             && now - last < COOLDOWN_SECS
         {
@@ -33,14 +31,9 @@ impl Cooldown {
 
     /// Record a use for this user.
     pub async fn record(&self, store: &Store, chat_id: i64, user_id: i64) -> Result<()> {
-        store.set_cooldown(chat_id, user_id, Self::now_secs()).await
-    }
-
-    fn now_secs() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
+        store
+            .set_cooldown(chat_id, user_id, telebots_core::Time::now_secs())
+            .await
     }
 }
 

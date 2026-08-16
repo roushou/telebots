@@ -2,10 +2,13 @@
 //!
 //! Organized by concern: [`blocks`] holds the text-block model and rendering
 //! used when bots send data to Telegram, [`money`] holds currency
-//! formatting. Future shared modules (storage, ...) are added as siblings.
+//! formatting, [`time`] holds wall-clock helpers. Future shared modules are
+//! added as siblings.
 
 pub mod blocks;
 pub mod money;
+pub mod time;
 
 pub use blocks::{Align, Block, Cell, Change, Line, Render};
 pub use money::{Currency, Money};
+pub use time::Time;

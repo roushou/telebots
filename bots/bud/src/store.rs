@@ -1,8 +1,6 @@
 //! Bud's database: the conversation history, per-chat settings, and the
 //! chat cooldown.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use anyhow::Result;
 use cloudflare_ai::TextModel;
 use storage::{Migration, Storage, Value};
@@ -71,7 +69,7 @@ impl Store {
         role: &str,
         content: &str,
     ) -> Result<()> {
-        let created_at = Self::now_secs();
+        let created_at = telebots_core::Time::now_secs();
         self.storage
             .execute(
                 "INSERT INTO messages (chat_id, user_id, role, content, created_at)
@@ -208,13 +206,6 @@ impl Store {
             )
             .await?;
         Ok(())
-    }
-
-    fn now_secs() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
     }
 }
 

@@ -1,7 +1,5 @@
 //! Per-user rate limiting for `/imagine`, applied as a router guard.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use anyhow::Result;
 use botkit::{Guard, Reply, Request};
 use telebots_core::Block;
@@ -25,7 +23,7 @@ impl Guard<Command, Ctx> for Cooldown {
             return Ok(None);
         };
 
-        let now = Self::now_secs();
+        let now = telebots_core::Time::now_secs();
         if let Some(last) = ctx.storage.cooldown(req.chat_id, user_id).await?
             && now - last < COOLDOWN_SECS
         {
@@ -39,15 +37,6 @@ impl Guard<Command, Ctx> for Cooldown {
 
         ctx.storage.set_cooldown(req.chat_id, user_id, now).await?;
         Ok(None)
-    }
-}
-
-impl Cooldown {
-    fn now_secs() -> i64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0)
     }
 }
 
