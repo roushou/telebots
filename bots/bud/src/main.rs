@@ -30,6 +30,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let router = botkit::Router::new(ctx)
         .command::<commands::Command>()
+        .help::<commands::Command>(Some(render::model_table()))
         .stats()
         .message(message::Chat);
 

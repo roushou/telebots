@@ -21,6 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let ctx = commands::Ctx { cmc, coingecko };
     let router = botkit::Router::new(ctx)
         .command::<commands::Command>()
+        .help::<commands::Command>(None)
         .inline_query(inline::Inline)
         .callback(callback::PriceRefresh)
         .stats();

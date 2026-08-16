@@ -15,7 +15,6 @@ mod args;
 mod compare;
 mod convert;
 mod fear_greed;
-mod help;
 mod info;
 mod market;
 mod price;
@@ -26,7 +25,7 @@ use coingecko::CoinGeckoClient;
 use coinmarketcap::CmcClient;
 
 use self::{
-    compare::CompareArgs, convert::ConvertArgs, fear_greed::FearGreed, help::Help, info::InfoArgs,
+    compare::CompareArgs, convert::ConvertArgs, fear_greed::FearGreed, info::InfoArgs,
     market::Market, price::PriceArgs, trending::Trending,
 };
 
@@ -60,9 +59,6 @@ pub enum Command {
 
     #[command(description = "Project info: /info btc")]
     Info(String),
-
-    #[command(description = "Show help")]
-    Help,
 }
 
 #[botkit::async_trait]
@@ -90,7 +86,6 @@ impl botkit::Command for Command {
                 .reply(ctx)
                 .await
                 .map(botkit::Reply::text),
-            Command::Help => Help.reply().await.map(botkit::Reply::text),
         }
     }
 }

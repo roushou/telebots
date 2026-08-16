@@ -88,8 +88,8 @@ mod tests {
         let ctx = ctx().await?;
         let guard = Cooldown;
         let req = Request::new(1, Some(42));
-        assert!(guard.check(&ctx, &req, &Command::Help).await?.is_none());
-        assert!(guard.check(&ctx, &req, &Command::Help).await?.is_none());
+        assert!(guard.check(&ctx, &req, &Command::History).await?.is_none());
+        assert!(guard.check(&ctx, &req, &Command::History).await?.is_none());
         Ok(())
     }
 }

@@ -107,6 +107,7 @@ mod dispatch;
 mod error;
 mod guard;
 mod health;
+mod help;
 mod inline;
 mod markup;
 mod message;

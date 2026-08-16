@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod cooldown;
 mod generator;
+mod render;
 mod store;
 
 use crate::{config::Config, generator::Generator, store::Store};
@@ -21,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
     let ctx = commands::Ctx { generator, storage };
     let router = botkit::Router::new(ctx)
         .guarded_command::<commands::Command, cooldown::Cooldown>(cooldown::Cooldown)
+        .help::<commands::Command>(Some(render::model_table()))
         .stats();
 
     botkit::Bot::builder()

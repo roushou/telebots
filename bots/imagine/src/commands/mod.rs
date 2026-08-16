@@ -9,11 +9,10 @@
 //! Generation runs in a botkit-supervised background job that delivers the
 //! photo (or an error) and cleans up the placeholder.
 
-mod help;
 mod history;
 mod imagine;
 
-use self::{help::Help, history::History, imagine::ImagineArgs};
+use self::{history::History, imagine::ImagineArgs};
 use crate::{generator::Generator, store::Store};
 
 /// Everything a command needs to produce its reply.
@@ -31,9 +30,6 @@ pub enum Command {
 
     #[command(description = "Recent generations")]
     History,
-
-    #[command(description = "Show help")]
-    Help,
 }
 
 #[botkit::async_trait]
@@ -46,7 +42,6 @@ impl botkit::Command for Command {
         match self {
             Command::Imagine(raw) => ImagineArgs::parse(raw)?.reply(ctx).await,
             Command::History => History.reply(ctx, req.chat_id).await,
-            Command::Help => Help.reply().await,
         }
     }
 }

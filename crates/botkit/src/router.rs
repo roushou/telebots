@@ -1,6 +1,7 @@
 //! The update router: composes command and inline-query branches into a
 //! single dispatcher tree sharing one context.
 
+use telebots_core::Block;
 use teloxide::{
     Bot as Api, RequestError,
     dispatching::{UpdateFilterExt as _, UpdateHandler},
@@ -11,7 +12,7 @@ use teloxide::{
 
 use crate::{
     callback::{CallbackHandler, CallbackRequest},
-    command::{Command, MenuEntry},
+    command::{Command, CommandSpec, MenuEntry},
     dispatch::{MAX_MESSAGE_LEN, Supervisor, dispatch},
     guard::{Guard, NoGuard},
     inline::{InlineHandler, InlineRequest},
@@ -104,6 +105,21 @@ impl<Ctx: Clone + Send + Sync + 'static> Router<Ctx> {
             description: "Show bot stats".into(),
         });
         self.branches.push(Box::new(crate::stats::stats_branch));
+        self
+    }
+
+    /// Add the built-in `/help` command, rendering `C`'s command list plus
+    /// an optional bot-specific tail block (models, notes, ...).
+    pub fn help<C>(mut self, extra: Option<Block>) -> Self
+    where
+        C: CommandSpec,
+    {
+        self.menu.push(MenuEntry {
+            command: "/help".into(),
+            description: "Show help".into(),
+        });
+        self.branches
+            .push(Box::new(move || crate::help::help_branch::<C>(extra)));
         self
     }
 
