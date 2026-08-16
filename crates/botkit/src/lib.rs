@@ -100,20 +100,20 @@
 //! authors them. botkit's own startup failures are the typed [`Error`].
 
 mod bot;
+mod branches;
+mod builtin;
 mod config;
 mod dispatch;
 mod error;
 mod guard;
 mod handlers;
 mod health;
-mod help;
 mod markup;
 mod messenger;
 mod metrics;
 mod reply;
 mod request;
 mod router;
-mod stats;
 mod supervisor;
 mod telemetry;
 
