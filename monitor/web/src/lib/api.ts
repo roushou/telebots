@@ -7,6 +7,8 @@ export type BotStatus = {
   version: string;
   uptime_secs: number;
   telegram: string;
+  /// Whether the bot reports itself healthy (authoritative).
+  healthy?: boolean;
   last_heartbeat_ago_secs: number | null;
   last_command_ago_secs: number | null;
   commands_total: number;

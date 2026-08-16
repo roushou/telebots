@@ -31,6 +31,9 @@ pub struct Health {
     pub version: &'static str,
     pub uptime_secs: u64,
     pub telegram: &'static str,
+    /// Whether the bot considers itself healthy: Telegram reachable and the
+    /// heartbeat fresh. The monitor reads this directly.
+    pub healthy: bool,
     pub last_heartbeat_ago_secs: Option<i64>,
     pub last_command_ago_secs: Option<i64>,
     pub commands_total: u64,
@@ -229,6 +232,8 @@ impl Metrics {
             } else {
                 "unreachable"
             },
+            healthy: self.telegram_ok.load(Ordering::Relaxed)
+                && self.last_heartbeat.load(Ordering::Relaxed) + STALE_AFTER_SECS >= now,
             last_heartbeat_ago_secs: ago(self.last_heartbeat.load(Ordering::Relaxed)),
             last_command_ago_secs: ago(self.last_command.load(Ordering::Relaxed)),
             commands_total: self.commands_total.load(Ordering::Relaxed),
@@ -262,6 +267,7 @@ mod tests {
         assert_eq!(h.service, "test");
         assert_eq!(h.version, "0.1.0");
         assert_eq!(h.telegram, "ok");
+        assert!(h.healthy);
         assert_eq!(h.jobs_active, 0);
         assert!(m.alive());
     }
@@ -271,6 +277,7 @@ mod tests {
         let m = Metrics::new("test", "0.1.0");
         m.heartbeat_failed();
         assert_eq!(m.health().telegram, "unreachable");
+        assert!(!m.health().healthy);
         // Still alive until the last heartbeat goes stale.
         assert!(m.alive());
     }
