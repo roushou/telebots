@@ -25,6 +25,9 @@ const DRAIN_GRACE: Duration = Duration::from_secs(15);
 /// How often the Telegram `get_me` heartbeat runs.
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
+/// A bot is considered stale after this many missed heartbeats.
+pub(crate) const STALE_AFTER_SECS: i64 = 3 * HEARTBEAT_INTERVAL.as_secs() as i64;
+
 /// A configured bot, ready to run.
 pub struct Bot {
     api: Api,

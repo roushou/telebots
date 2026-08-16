@@ -12,9 +12,7 @@ use std::{
 
 use serde::Serialize;
 
-/// How old a successful heartbeat may be before the bot is considered
-/// dead (3× the 60s heartbeat interval).
-const STALE_AFTER_SECS: i64 = 180;
+use crate::bot::STALE_AFTER_SECS;
 
 /// Per-command counters.
 #[derive(Serialize)]
