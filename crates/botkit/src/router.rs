@@ -11,15 +11,12 @@ use teloxide::{
 };
 
 use crate::{
-    callback::{CallbackHandler, CallbackRequest},
-    command::{Command, CommandSpec, MenuEntry},
     dispatch::{MAX_MESSAGE_LEN, Supervisor, dispatch},
     guard::{Guard, NoGuard},
-    inline::{InlineHandler, InlineRequest},
-    message::{MessageHandler, MessageRequest},
+    handlers::{CallbackHandler, Command, CommandSpec, InlineHandler, MenuEntry, MessageHandler},
     messenger::Messenger,
     reply::Reply,
-    request::Request,
+    request::{CallbackRequest, InlineRequest, MessageRequest, Request},
 };
 
 /// A set of update handlers sharing one context, assembled before
@@ -162,7 +159,7 @@ where
                 Ok(answer) => answer
                     .results
                     .into_iter()
-                    .map(crate::inline::InlineResult::into_telegram)
+                    .map(crate::handlers::InlineResult::into_telegram)
                     .collect::<Vec<_>>(),
                 Err(e) => {
                     tracing::warn!("inline query failed: {e:#}");

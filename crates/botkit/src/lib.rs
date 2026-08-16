@@ -100,17 +100,14 @@
 //! authors them. botkit's own startup failures are the typed [`Error`].
 
 mod bot;
-mod callback;
-mod command;
 mod config;
 mod dispatch;
 mod error;
 mod guard;
+mod handlers;
 mod health;
 mod help;
-mod inline;
 mod markup;
-mod message;
 mod messenger;
 mod metrics;
 mod reply;
@@ -122,16 +119,16 @@ mod telemetry;
 pub use async_trait::async_trait;
 pub use bot::{Bot, BotBuilder};
 pub use botkit_derive::CommandSpec;
-pub use callback::{CallbackHandler, CallbackRequest};
-pub use command::{Command, CommandSpec, MenuEntry};
 pub use config::Secret;
 pub use error::Error;
 pub use guard::{Guard, NoGuard};
-pub use inline::{InlineAnswer, InlineHandler, InlineRequest, InlineResult};
+pub use handlers::{
+    CallbackHandler, Command, CommandSpec, InlineAnswer, InlineHandler, InlineResult, MenuEntry,
+    MessageHandler,
+};
 pub use markup::{Button, Markup};
-pub use message::{MessageHandler, MessageRequest};
 pub use metrics::UsageReporter;
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
-pub use request::{ChatKind, Request};
+pub use request::{CallbackRequest, ChatKind, InlineRequest, MessageRequest, Request};
 pub use router::Router;
 pub use telemetry::Telemetry;

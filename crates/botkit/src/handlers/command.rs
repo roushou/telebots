@@ -8,7 +8,7 @@
 
 use anyhow::Result;
 
-use crate::{Reply, Request};
+use crate::{reply::Reply, request::Request};
 
 /// A single entry in the Telegram command menu.
 #[derive(Debug, Clone, PartialEq, Eq)]

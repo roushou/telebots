@@ -1,5 +1,14 @@
-//! The command context: what a command knows about the update that invoked
-//! it. A teloxide-free seam over the transport's message type.
+//! The teloxide-free views of the updates handlers receive: [`Request`] for
+//! commands and the message, inline, and callback request types for their
+//! handlers.
+
+mod callback;
+mod inline;
+mod message;
+
+pub use callback::CallbackRequest;
+pub use inline::InlineRequest;
+pub use message::MessageRequest;
 
 /// The kind of chat a request came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -11,7 +20,7 @@ pub enum ChatKind {
     Channel,
 }
 
-/// Everything a command needs about the update it is handling.
+/// Everything a handler knows about the update it is handling.
 #[derive(Debug, Clone)]
 pub struct Request {
     /// Telegram chat id the update came from.

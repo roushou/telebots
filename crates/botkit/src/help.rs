@@ -9,8 +9,8 @@ use teloxide::{
 };
 
 use crate::{
-    command::CommandSpec,
     dispatch::{Supervisor, dispatch},
+    handlers::CommandSpec,
     reply::Reply,
 };
 

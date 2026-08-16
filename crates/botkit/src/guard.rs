@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 
-use crate::{Reply, Request};
+use crate::{reply::Reply, request::Request};
 
 /// A pre-command check. Return `Some(reply)` to stop the command and send
 /// that reply instead, or `None` to let it proceed.

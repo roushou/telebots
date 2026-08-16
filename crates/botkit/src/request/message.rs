@@ -1,12 +1,6 @@
-//! Free-form message support: the branch that lets a bot respond to any
-//! text message, not just slash commands.
-//!
-//! A [`MessageHandler`] sees every text message that was not consumed by a
-//! command branch and may reply (or return `None` to stay silent).
+//! The free-form message request type.
 
-use anyhow::Result;
-
-use crate::{Reply, Request};
+use crate::request::Request;
 
 /// A teloxide-free view of a free-form text message: the shared [`Request`]
 /// context plus the message-specific fields.
@@ -34,24 +28,10 @@ impl MessageRequest {
     }
 }
 
-/// The behavior a bot implements for free-form text messages.
-#[crate::async_trait]
-pub trait MessageHandler: Clone + Send + Sync + 'static {
-    /// Everything the handler needs to produce its reply.
-    type Ctx: Clone + Send + Sync + 'static;
-
-    /// Produce the reply for this message, or `None` to stay silent (for
-    /// example, group chatter that is neither an @mention nor a reply).
-    ///
-    /// Errors are authored with `anyhow`; botkit transports and renders them
-    /// (`⚠️ {e:#}`).
-    async fn handle(&self, ctx: &Self::Ctx, req: &MessageRequest) -> Result<Option<Reply>>;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ChatKind;
+    use crate::request::ChatKind;
 
     #[test]
     fn message_request_new() {
