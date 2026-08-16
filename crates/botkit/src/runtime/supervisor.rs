@@ -11,10 +11,8 @@ use tokio::{
 };
 
 use crate::{
-    dispatch::MAX_MESSAGE_LEN,
-    messenger::Messenger,
-    metrics::{Health, Metrics},
     reply::{Job, JobCtx, Reply},
+    runtime::{Health, MAX_MESSAGE_LEN, Messenger, Metrics},
 };
 
 /// Tracks in-flight background jobs so shutdown can drain them, and carries
@@ -54,7 +52,7 @@ impl Supervisor {
     }
 
     /// A handle for reporting LLM usage from background jobs.
-    pub(crate) fn usage_reporter(&self) -> crate::metrics::UsageReporter {
+    pub(crate) fn usage_reporter(&self) -> crate::runtime::UsageReporter {
         self.metrics.usage_reporter()
     }
 

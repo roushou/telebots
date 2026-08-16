@@ -10,9 +10,8 @@ use teloxide::{
 };
 
 use crate::{
-    messenger::Messenger,
     reply::{JobCtx, Reply},
-    supervisor::Supervisor,
+    runtime::{Messenger, Supervisor},
 };
 
 /// Telegram's text message length limit.
@@ -80,7 +79,7 @@ mod tests {
     use telebots_core::Block;
 
     use super::*;
-    use crate::{metrics::Metrics, reply::Job};
+    use crate::{reply::Job, runtime::Metrics};
 
     fn block(text: &str) -> Block {
         let mut b = Block::new();

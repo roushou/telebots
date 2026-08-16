@@ -3,7 +3,7 @@
 //! [`Reply::Background`] jobs carry [`anyhow::Result`] because command
 //! errors are authored with `anyhow` in the binaries; botkit only
 //! transports and renders them (`⚠️ {e:#}`). Execution lives in
-//! [`crate::dispatch`].
+//! [`crate::runtime::dispatch`].
 
 use std::{future::Future, pin::Pin, time::Duration};
 
@@ -117,7 +117,7 @@ pub struct JobCtx {
     pub chat_id: i64,
     pub user_id: Option<i64>,
     /// Report LLM token usage and cost into the bot's metrics.
-    pub usage: crate::metrics::UsageReporter,
+    pub usage: crate::runtime::UsageReporter,
 }
 
 #[cfg(test)]

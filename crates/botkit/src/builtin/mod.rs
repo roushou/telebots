@@ -13,7 +13,10 @@ use teloxide::{
     types::{Me, Message, Update},
 };
 
-use crate::{dispatch::dispatch, reply::Reply, supervisor::Supervisor};
+use crate::{
+    reply::Reply,
+    runtime::{Supervisor, dispatch},
+};
 
 /// Build a text-reply branch for a built-in slash command.
 pub(crate) fn builtin_branch<F>(command: &'static str, render: F) -> UpdateHandler<RequestError>

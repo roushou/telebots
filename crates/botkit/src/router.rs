@@ -5,10 +5,10 @@ use telebots_core::Block;
 use teloxide::{RequestError, dispatching::UpdateHandler};
 
 use crate::{
-    branches::{callback_branch, command_branch, inline_branch, message_branch},
     builtin::{help_branch, stats_branch},
     guard::{Guard, NoGuard},
     handlers::{CallbackHandler, Command, CommandSpec, InlineHandler, MenuEntry, MessageHandler},
+    runtime::{callback_branch, command_branch, inline_branch, message_branch},
 };
 
 /// A set of update handlers sharing one context, assembled before

@@ -100,21 +100,16 @@
 //! authors them. botkit's own startup failures are the typed [`Error`].
 
 mod bot;
-mod branches;
 mod builtin;
 mod config;
-mod dispatch;
 mod error;
 mod guard;
 mod handlers;
-mod health;
 mod markup;
-mod messenger;
-mod metrics;
 mod reply;
 mod request;
 mod router;
-mod supervisor;
+mod runtime;
 mod telemetry;
 
 pub use async_trait::async_trait;
@@ -128,8 +123,8 @@ pub use handlers::{
     MessageHandler,
 };
 pub use markup::{Button, Markup};
-pub use metrics::UsageReporter;
 pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{CallbackRequest, ChatKind, InlineRequest, MessageRequest, Request};
 pub use router::Router;
+pub use runtime::UsageReporter;
 pub use telemetry::Telemetry;

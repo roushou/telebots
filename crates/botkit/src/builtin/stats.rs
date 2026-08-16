@@ -3,7 +3,7 @@
 use telebots_core::Block;
 use teloxide::{RequestError, dispatching::UpdateHandler};
 
-use crate::{builtin::builtin_branch, metrics::Health};
+use crate::{builtin::builtin_branch, runtime::Health};
 
 /// The `/stats` branch: answer with the current health snapshot.
 pub(crate) fn stats_branch() -> UpdateHandler<RequestError> {

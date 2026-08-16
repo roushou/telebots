@@ -14,7 +14,9 @@ use teloxide::{
 };
 
 use crate::{
-    error::Error, health::Server, metrics::Metrics, router::Router, supervisor::Supervisor,
+    error::Error,
+    router::Router,
+    runtime::{Metrics, Server, Supervisor},
 };
 
 /// How long shutdown waits for in-flight background jobs.

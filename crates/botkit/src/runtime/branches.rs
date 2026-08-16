@@ -11,13 +11,11 @@ use teloxide::{
 };
 
 use crate::{
-    dispatch::{MAX_MESSAGE_LEN, dispatch},
     guard::Guard,
     handlers::{CallbackHandler, Command, InlineHandler, InlineResult, MessageHandler},
-    messenger::Messenger,
     reply::Reply,
     request::{CallbackRequest, InlineRequest, MessageRequest, Request},
-    supervisor::Supervisor,
+    runtime::{MAX_MESSAGE_LEN, Messenger, Supervisor, dispatch},
 };
 
 /// The command branch: parse `/command` text, then run the guard and the

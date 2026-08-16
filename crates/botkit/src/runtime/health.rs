@@ -4,7 +4,7 @@
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use tokio::net::TcpListener;
 
-use crate::metrics::{Health, Metrics};
+use crate::runtime::{Health, Metrics};
 
 /// The health/metrics HTTP server.
 pub struct Server;
