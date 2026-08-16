@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Result, bail};
 use botkit::{Job, Reply};
-use cloudflare_ai::Model;
+use cloudflare_ai::ImageModel;
 
 use crate::commands::Ctx;
 
@@ -19,7 +19,7 @@ const JOB_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Typed arguments for `/imagine`.
 pub struct ImagineArgs {
-    pub model: Model,
+    pub model: ImageModel,
     pub prompt: String,
 }
 
@@ -32,15 +32,15 @@ impl ImagineArgs {
         }
 
         let (model, prompt) = match raw.split_once(|c: char| c.is_whitespace()) {
-            Some((first, rest)) => match Model::from_alias(first) {
+            Some((first, rest)) => match ImageModel::from_alias(first) {
                 Some(model) => (model, rest.trim().to_string()),
-                None => (Model::default(), raw.to_string()),
+                None => (ImageModel::default(), raw.to_string()),
             },
             // A lone token is a prompt, unless it is a model alias with no
             // prompt — that is a usage error.
-            None => match Model::from_alias(raw) {
+            None => match ImageModel::from_alias(raw) {
                 Some(model) => bail!("Usage: /imagine {model} <prompt>"),
-                None => (Model::default(), raw.to_string()),
+                None => (ImageModel::default(), raw.to_string()),
             },
         };
 
@@ -53,14 +53,14 @@ impl ImagineArgs {
     /// The placeholder shown while generation runs, tuned to the model.
     fn placeholder(&self) -> &'static str {
         match self.model {
-            Model::Flux2Dev => "🎨 generating with flux-2-dev… (can take a few minutes)",
-            Model::Flux2Klein4b | Model::Flux2Klein9b => {
+            ImageModel::Flux2Dev => "🎨 generating with flux-2-dev… (can take a few minutes)",
+            ImageModel::Flux2Klein4b | ImageModel::Flux2Klein9b => {
                 "🎨 generating with flux-2-klein… (can take a few minutes)"
             }
-            Model::Flux1Schnell => "🎨 generating with flux-1-schnell…",
-            Model::SdXlLightning => "🎨 generating with sd-xl-lightning…",
-            Model::Dreamshaper8Lcm => "🎨 generating with dreamshaper-8-lcm…",
-            Model::SdXlBase1 => "🎨 generating with sd-xl-base…",
+            ImageModel::Flux1Schnell => "🎨 generating with flux-1-schnell…",
+            ImageModel::SdXlLightning => "🎨 generating with sd-xl-lightning…",
+            ImageModel::Dreamshaper8Lcm => "🎨 generating with dreamshaper-8-lcm…",
+            ImageModel::SdXlBase1 => "🎨 generating with sd-xl-base…",
             _ => "🎨 generating…",
         }
     }
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn parse_trims_and_caps_length() -> anyhow::Result<()> {
         let args = ImagineArgs::parse("  a cat  ")?;
-        assert_eq!(args.model, Model::default());
+        assert_eq!(args.model, ImageModel::default());
         assert_eq!(args.prompt, "a cat");
         let long = "x".repeat(MAX_PROMPT_LEN + 1);
         assert!(ImagineArgs::parse(&long).is_err());
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn parse_selects_model_from_leading_token() -> anyhow::Result<()> {
         let args = ImagineArgs::parse("schnell a cat")?;
-        assert_eq!(args.model, Model::Flux1Schnell);
+        assert_eq!(args.model, ImageModel::Flux1Schnell);
         assert_eq!(args.prompt, "a cat");
         Ok(())
     }
@@ -150,7 +150,7 @@ mod tests {
     #[test]
     fn parse_treats_unknown_first_word_as_prompt() -> anyhow::Result<()> {
         let args = ImagineArgs::parse("lightning strikes a tower")?;
-        assert_eq!(args.model, Model::default());
+        assert_eq!(args.model, ImageModel::default());
         assert_eq!(args.prompt, "lightning strikes a tower");
         Ok(())
     }

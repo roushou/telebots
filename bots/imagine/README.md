@@ -60,7 +60,7 @@ Pass one of these tokens before the prompt, e.g.
   in-memory state), so they survive restarts.
 - The image provider is behind a `Generator` enum (`src/generator.rs`) —
   swapping providers touches only that module and the `Ctx` wiring. Model
-  names live in `cloudflare-ai::Model` (`crates/cloudflare-ai`); the bot
+  names live in `cloudflare-ai::ImageModel` (`crates/cloudflare-ai`); the bot
   never hard-codes `@cf/...` paths.
 - Cloudflare's free Workers AI tier has a daily quota; if exceeded, requests
   fail with a Cloudflare error surfaced as `⚠️`.

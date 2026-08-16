@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use crate::{
     error::Error,
-    types::{ChatCompletion, ChatMessage, GeneratedImage, Input, Model, TextModel, Usage},
+    types::{ChatCompletion, ChatMessage, GeneratedImage, ImageModel, Input, TextModel, Usage},
 };
 
 const API_BASE: &str = "https://api.cloudflare.com/client/v4";
@@ -43,7 +43,7 @@ impl CloudflareAiClient {
     /// text-to-image models, `multipart/form-data` for the FLUX.2 family.
     pub async fn generate_image(
         &self,
-        model: Model,
+        model: ImageModel,
         prompt: &str,
     ) -> Result<GeneratedImage, Error> {
         let url = format!(
