@@ -199,12 +199,8 @@ where
                 .map(|user| user.id == me.user.id)
                 .unwrap_or(false);
             let req = MessageRequest {
+                request: Request::from_message(&msg),
                 text,
-                chat_id: msg.chat.id.0,
-                user_id: msg.from.as_ref().map(|u| u.id.0 as i64),
-                username: msg.from.as_ref().and_then(|u| u.username.clone()),
-                chat_kind: crate::request::chat_kind(&msg.chat.kind),
-                reply_to_message_id: msg.reply_to_message().map(|reply| reply.id.0),
                 mentioned,
                 replied_to_bot,
             };

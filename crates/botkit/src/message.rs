@@ -6,23 +6,16 @@
 
 use anyhow::Result;
 
-use crate::{ChatKind, Reply};
+use crate::{Reply, Request};
 
-/// A teloxide-free view of a free-form text message.
+/// A teloxide-free view of a free-form text message: the shared [`Request`]
+/// context plus the message-specific fields.
 #[derive(Debug, Clone)]
 pub struct MessageRequest {
+    /// The shared update context (chat, user, chat kind, reply target).
+    pub request: Request,
     /// The full message text.
     pub text: String,
-    /// Telegram chat id the message came from.
-    pub chat_id: i64,
-    /// Telegram user id, when the message is from a private user.
-    pub user_id: Option<i64>,
-    /// The user's `@username`, when known.
-    pub username: Option<String>,
-    /// What kind of chat this is.
-    pub chat_kind: ChatKind,
-    /// The message being replied to, when any.
-    pub reply_to_message_id: Option<i32>,
     /// Whether the text mentions the bot (contains `@botname`).
     pub mentioned: bool,
     /// Whether this message replies to one of the bot's own messages.
@@ -33,12 +26,8 @@ impl MessageRequest {
     /// A request for tests and callers that don't have a real update.
     pub fn new(text: impl Into<String>, chat_id: i64, user_id: Option<i64>) -> Self {
         Self {
+            request: Request::new(chat_id, user_id),
             text: text.into(),
-            chat_id,
-            user_id,
-            username: None,
-            chat_kind: ChatKind::Private,
-            reply_to_message_id: None,
             mentioned: false,
             replied_to_bot: false,
         }
@@ -62,15 +51,16 @@ pub trait MessageHandler: Clone + Send + Sync + 'static {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ChatKind;
 
     #[test]
     fn message_request_new() {
         let req = MessageRequest::new("hello", 1, Some(42));
         assert_eq!(req.text, "hello");
-        assert_eq!(req.chat_id, 1);
-        assert_eq!(req.user_id, Some(42));
+        assert_eq!(req.request.chat_id, 1);
+        assert_eq!(req.request.user_id, Some(42));
         assert!(!req.mentioned);
         assert!(!req.replied_to_bot);
-        assert_eq!(req.chat_kind, ChatKind::Private);
+        assert_eq!(req.request.chat_kind, ChatKind::Private);
     }
 }

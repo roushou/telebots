@@ -26,7 +26,7 @@ pub struct Chat;
 impl Chat {
     /// Whether to answer this message.
     fn should_respond(req: &MessageRequest) -> bool {
-        match req.chat_kind {
+        match req.request.chat_kind {
             ChatKind::Private => true,
             ChatKind::Group | ChatKind::Supergroup => req.mentioned || req.replied_to_bot,
             ChatKind::Channel | _ => false,
@@ -44,9 +44,9 @@ impl MessageHandler for Chat {
         }
 
         // Rate-limit per user (persistent, survives restarts).
-        if let Some(user_id) = req.user_id {
+        if let Some(user_id) = req.request.user_id {
             if let Some(wait) = Cooldown
-                .remaining(&ctx.storage, req.chat_id, user_id)
+                .remaining(&ctx.storage, req.request.chat_id, user_id)
                 .await?
             {
                 let mut b = Block::new();
@@ -55,20 +55,22 @@ impl MessageHandler for Chat {
                 ));
                 return Ok(Some(Reply::text(b)));
             }
-            Cooldown.record(&ctx.storage, req.chat_id, user_id).await?;
+            Cooldown
+                .record(&ctx.storage, req.request.chat_id, user_id)
+                .await?;
         }
 
         // Persist the user message, then build context (history now ends
         // with it).
         ctx.storage
-            .add_message(req.chat_id, req.user_id, "user", &req.text)
+            .add_message(req.request.chat_id, req.request.user_id, "user", &req.text)
             .await?;
         let history = ctx
             .storage
-            .recent_messages(req.chat_id, ctx.max_history)
+            .recent_messages(req.request.chat_id, ctx.max_history)
             .await?;
 
-        let settings = ctx.storage.settings(req.chat_id).await?;
+        let settings = ctx.storage.settings(req.request.chat_id).await?;
         let system_prompt = settings
             .system_prompt
             .clone()
@@ -117,7 +119,7 @@ mod tests {
     #[test]
     fn responds_in_group_only_when_addressed() {
         let mut base = MessageRequest::new("hi", 1, Some(42));
-        base.chat_kind = ChatKind::Supergroup;
+        base.request.chat_kind = ChatKind::Supergroup;
         assert!(!Chat::should_respond(&base));
 
         base.mentioned = true;
@@ -131,7 +133,7 @@ mod tests {
     #[test]
     fn never_responds_in_channel() {
         let mut req = MessageRequest::new("hi", 1, Some(42));
-        req.chat_kind = ChatKind::Channel;
+        req.request.chat_kind = ChatKind::Channel;
         req.mentioned = true;
         assert!(!Chat::should_respond(&req));
     }
