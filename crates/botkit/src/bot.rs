@@ -17,6 +17,7 @@ use crate::{
     error::Error,
     router::Router,
     runtime::{Metrics, Server, Supervisor},
+    scheduler::{ScheduleSource, Scheduler},
 };
 
 /// How long shutdown waits for in-flight background jobs.
@@ -35,6 +36,7 @@ pub struct Bot {
     version: &'static str,
     metrics_port: u16,
     metrics_addr: &'static str,
+    scheduler: Option<Scheduler>,
 }
 
 impl Bot {
@@ -46,6 +48,7 @@ impl Bot {
             version: "",
             metrics_port: 0,
             metrics_addr: "0.0.0.0",
+            scheduler: None,
         }
     }
 
@@ -90,6 +93,9 @@ impl Bot {
         Server::serve(listener, metrics.clone());
         Self::install_panic_hook(metrics.clone());
         Self::spawn_heartbeat(self.api.clone(), metrics.clone());
+        if let Some(scheduler) = self.scheduler {
+            scheduler.spawn(self.api.clone());
+        }
 
         let supervisor = Supervisor::new(metrics.clone());
         let mut tree: UpdateHandler<RequestError> = dptree::entry();
@@ -186,13 +192,13 @@ impl Bot {
 }
 
 /// Builder for [`Bot`].
-#[derive(Debug, Clone)]
 pub struct BotBuilder {
     token: Option<String>,
     service: &'static str,
     version: &'static str,
     metrics_port: u16,
     metrics_addr: &'static str,
+    scheduler: Option<Scheduler>,
 }
 
 impl BotBuilder {
@@ -226,6 +232,17 @@ impl BotBuilder {
         self
     }
 
+    /// Attach a periodic scheduler that asks `source` what work is due and
+    /// delivers it (reminders, feed polls, price alerts). The first tick
+    /// fires immediately, so overdue work is caught up on startup.
+    pub fn scheduler<S>(mut self, interval: Duration, source: S) -> Self
+    where
+        S: ScheduleSource,
+    {
+        self.scheduler = Some(Scheduler::new(interval, Arc::new(source)));
+        self
+    }
+
     /// Assemble the bot, failing if no token was provided.
     pub fn build(self) -> Result<Bot, Error> {
         let token = self.token.ok_or(Error::MissingToken)?;
@@ -235,6 +252,7 @@ impl BotBuilder {
             version: self.version,
             metrics_port: self.metrics_port,
             metrics_addr: self.metrics_addr,
+            scheduler: self.scheduler,
         })
     }
 

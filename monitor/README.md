@@ -68,9 +68,10 @@ produces a Nitro server build in `web/.output`; the Docker image runs
 ## Deployment
 
 Each bot exposes `/metrics` on `0.0.0.0:<TELEBOTS_METRICS_PORT>` (degen
-9101, imagine 9102, overridable). The monitor container reaches them over
-the compose network; the dashboard binds `127.0.0.1:3000` on the host and
-the JSON API stays internal to the container.
+9101, imagine 9102, bud 9103, remind 9104, overridable). The monitor
+container reaches them over the compose network; the dashboard binds
+`127.0.0.1:3000` on the host and the JSON API stays internal to the
+container.
 
 Dev access via Tailscale (no public ports):
 

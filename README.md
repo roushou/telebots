@@ -7,6 +7,7 @@ A bunch of Telegram bots to make Telegram better.
 | [`degen`](bots/degen)   | cryptocurrency bot                           |
 | [`imagine`](bots/imagine) | AI image generation from prompts           |
 | [`bud`](bots/bud)     | AI chat bot (talk to it like ChatGPT)         |
+| [`remind`](bots/remind) | reminders & scheduled messages (set a time, get pinged) |
 | [`monitor`](monitor) | admin dashboard: per-bot status + history     |
 
 Library crates shared by the bots:
@@ -92,7 +93,7 @@ Notes:
 - Only outbound connectivity is required (`api.telegram.org`, the
   CoinMarketCap API, `api.cloudflare.com`); nothing needs to be reachable
   from the internet, so the VPS firewall can drop inbound traffic.
-- Bots with persistent state (imagine) mount a data volume
+- Bots with persistent state (imagine, bud, remind) mount a data volume
   (`./data/<bot>:/data`); the SQLite database lives there, survives
   restarts, and is gitignored.
 - Local dev: see [Getting started](#getting-started) above — same code,

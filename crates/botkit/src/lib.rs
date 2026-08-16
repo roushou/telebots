@@ -110,6 +110,7 @@ mod reply;
 mod request;
 mod router;
 mod runtime;
+mod scheduler;
 mod telemetry;
 
 pub use async_trait::async_trait;
@@ -127,4 +128,5 @@ pub use reply::{BoxFuture, Job, JobCtx, Reply};
 pub use request::{CallbackRequest, ChatKind, InlineRequest, MessageRequest, Request};
 pub use router::Router;
 pub use runtime::UsageReporter;
+pub use scheduler::{ScheduleSource, ScheduledMessage};
 pub use telemetry::Telemetry;

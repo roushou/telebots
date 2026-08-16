@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["bots/degen", "bots/imagine", "bots/bud", "crates/botkit", "crates/botkit-derive", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage", "monitor"]
+members = ["bots/degen", "bots/imagine", "bots/bud", "bots/remind", "crates/botkit", "crates/botkit-derive", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage", "monitor"]
 
 [workspace.package]
 version = "0.1.0"
@@ -26,6 +26,7 @@ serde_json = "1"
 storage = { path = "crates/storage" }
 telebots-core = { path = "crates/core" }
 thiserror = "2"
+time = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "rt", "net"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

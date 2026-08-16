@@ -33,13 +33,25 @@ services:
       - ./data/bud:/data
     restart: unless-stopped
 
+  remind:
+    build:
+      context: .
+      dockerfile: bots/remind/Dockerfile
+    env_file: bots/remind/.env
+    environment:
+      TELEBOTS_METRICS_PORT: "9104"
+      REMIND_DB_PATH: "/data/remind.db"
+    volumes:
+      - ./data/remind:/data
+    restart: unless-stopped
+
   monitor:
     build:
       context: .
       dockerfile: monitor/Dockerfile
     env_file: monitor/.env
     environment:
-      MONITOR_BOTS: "degen=http://degen:9101/metrics,imagine=http://imagine:9102/metrics,bud=http://bud:9103/metrics"
+      MONITOR_BOTS: "degen=http://degen:9101/metrics,imagine=http://imagine:9102/metrics,bud=http://bud:9103/metrics,remind=http://remind:9104/metrics"
       MONITOR_DB_PATH: "/data/monitor.db"
       MONITOR_PORT: "9110"
     volumes:
