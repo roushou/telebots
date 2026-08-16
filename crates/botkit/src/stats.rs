@@ -7,11 +7,7 @@ use teloxide::{
     types::{Me, Message, Update},
 };
 
-use crate::{
-    dispatch::{Supervisor, dispatch},
-    metrics::Health,
-    reply::Reply,
-};
+use crate::{dispatch::dispatch, metrics::Health, reply::Reply, supervisor::Supervisor};
 
 /// The `/stats` branch: parse and answer with the current health snapshot.
 pub(crate) fn stats_branch() -> UpdateHandler<RequestError> {

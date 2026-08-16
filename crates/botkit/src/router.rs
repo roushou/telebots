@@ -11,12 +11,13 @@ use teloxide::{
 };
 
 use crate::{
-    dispatch::{MAX_MESSAGE_LEN, Supervisor, dispatch},
+    dispatch::{MAX_MESSAGE_LEN, dispatch},
     guard::{Guard, NoGuard},
     handlers::{CallbackHandler, Command, CommandSpec, InlineHandler, MenuEntry, MessageHandler},
     messenger::Messenger,
     reply::Reply,
     request::{CallbackRequest, InlineRequest, MessageRequest, Request},
+    supervisor::Supervisor,
 };
 
 /// A set of update handlers sharing one context, assembled before

@@ -114,6 +114,7 @@ mod reply;
 mod request;
 mod router;
 mod stats;
+mod supervisor;
 mod telemetry;
 
 pub use async_trait::async_trait;

@@ -8,11 +8,7 @@ use teloxide::{
     types::{Me, Message, Update},
 };
 
-use crate::{
-    dispatch::{Supervisor, dispatch},
-    handlers::CommandSpec,
-    reply::Reply,
-};
+use crate::{dispatch::dispatch, handlers::CommandSpec, reply::Reply, supervisor::Supervisor};
 
 /// The `/help` branch: answer with the command list (and an optional
 /// bot-specific tail block).
