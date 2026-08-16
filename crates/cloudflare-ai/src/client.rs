@@ -1,24 +1,20 @@
-//! The Cloudflare Workers AI HTTP client: request plumbing and the REST
-//! call. The generated-image type lives in [`types`].
+//! The Cloudflare Workers AI HTTP client: the shared connection and error
+//! envelope parsing. Image generation lives in [`image`], text generation in
+//! [`text`].
 
-use std::time::Instant;
+use serde_json::Value;
 
-use base64::{Engine as _, engine::general_purpose::STANDARD};
-use reqwest::{header::CONTENT_TYPE, multipart::Form};
-use serde_json::{Value, json};
+use crate::error::Error;
 
-use crate::{
-    error::Error,
-    types::{ChatCompletion, ChatMessage, GeneratedImage, ImageModel, Input, TextModel, Usage},
-};
+/// Base URL for the Cloudflare REST API.
+pub(crate) const API_BASE: &str = "https://api.cloudflare.com/client/v4";
 
-const API_BASE: &str = "https://api.cloudflare.com/client/v4";
-
+/// A Cloudflare Workers AI client over one account.
 #[derive(Clone)]
 pub struct CloudflareAiClient {
-    http: reqwest::Client,
-    account_id: String,
-    api_token: String,
+    pub(crate) http: reqwest::Client,
+    pub(crate) account_id: String,
+    pub(crate) api_token: String,
 }
 
 impl CloudflareAiClient {
@@ -37,209 +33,8 @@ impl CloudflareAiClient {
         })
     }
 
-    /// Generate an image from `prompt` using `model`.
-    ///
-    /// The request encoding is chosen by the model: JSON for the classic
-    /// text-to-image models, `multipart/form-data` for the FLUX.2 family.
-    pub async fn generate_image(
-        &self,
-        model: ImageModel,
-        prompt: &str,
-    ) -> Result<GeneratedImage, Error> {
-        let url = format!(
-            "{API_BASE}/accounts/{}/ai/run/{}",
-            self.account_id,
-            model.path()
-        );
-        let request = self.http.post(url).bearer_auth(&self.api_token);
-        let started = Instant::now();
-        tracing::debug!(model = %model, "sending image request");
-        let resp = match model.input() {
-            Input::Json => request.json(&json!({ "prompt": prompt })).send().await?,
-            Input::Multipart => {
-                request
-                    .multipart(Form::new().text("prompt", prompt.to_string()))
-                    .send()
-                    .await?
-            }
-        };
-        tracing::debug!(
-            status = resp.status().as_u16(),
-            elapsed = ?started.elapsed(),
-            "image request completed"
-        );
-
-        let status = resp.status();
-        let content_type = resp
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default()
-            .to_string();
-        let bytes = resp.bytes().await?;
-
-        if !status.is_success() {
-            return Err(Error::Api {
-                status: status.as_u16(),
-                detail: Self::error_detail(&bytes).unwrap_or_default(),
-            });
-        }
-
-        Self::decode_response(&content_type, &bytes)
-    }
-
-    /// Decode a Workers AI image-generation response.
-    ///
-    /// Image models answer with raw image bytes when the request accepts
-    /// `image/*`, and with a JSON envelope otherwise:
-    ///
-    /// ```json
-    /// {"result":{"image":"<base64>"},"success":true,"errors":[],"messages":[]}
-    /// ```
-    ///
-    /// `result.image` is base64-encoded, sometimes wrapped in a
-    /// `data:image/<mime>;base64,` data URI.
-    fn decode_response(content_type: &str, bytes: &[u8]) -> Result<GeneratedImage, Error> {
-        // Raw binary path: the server honors `Accept: image/*`.
-        if content_type.starts_with("image/") {
-            return Ok(GeneratedImage {
-                bytes: bytes.to_vec(),
-                mime: content_type.to_string(),
-            });
-        }
-
-        // JSON envelope path.
-        let v: Value = serde_json::from_slice(bytes)?;
-
-        if !v.get("success").and_then(Value::as_bool).unwrap_or(false) {
-            return Err(Error::NotSuccess {
-                detail: Self::error_detail(bytes).unwrap_or_default(),
-            });
-        }
-
-        let image = v
-            .get("result")
-            .and_then(|r| r.get("image"))
-            .and_then(Value::as_str)
-            .ok_or(Error::MissingImage)?;
-
-        // Strip a `data:image/<mime>;base64,` prefix so only the base64
-        // payload reaches the decoder.
-        let (mime, payload) = match image.split_once(',') {
-            Some((prefix, payload)) if prefix.starts_with("data:") => {
-                let mime = prefix
-                    .strip_prefix("data:")
-                    .and_then(|p| p.split(';').next())
-                    .filter(|m| !m.is_empty())
-                    .unwrap_or("image/png");
-                (mime.to_string(), payload)
-            }
-            _ => ("image/png".to_string(), image),
-        };
-
-        let bytes = STANDARD.decode(payload)?;
-
-        Ok(GeneratedImage { bytes, mime })
-    }
-
-    /// Run a text-generation (chat) request with the given `messages` using
-    /// `model`, returning the assistant's reply. Requests use Cloudflare's
-    /// recommended scoped-prompt format (`{"messages":[…]}`).
-    pub async fn chat(
-        &self,
-        model: TextModel,
-        messages: &[ChatMessage],
-    ) -> Result<ChatCompletion, Error> {
-        let url = format!(
-            "{API_BASE}/accounts/{}/ai/run/{}",
-            self.account_id,
-            model.path()
-        );
-        let body = json!({ "messages": messages
-            .iter()
-            .map(|m| json!({ "role": m.role.as_str(), "content": m.content }))
-            .collect::<Vec<_>>() });
-        let started = Instant::now();
-        tracing::debug!(model = %model, messages = messages.len(), "sending chat request");
-        let resp = self
-            .http
-            .post(url)
-            .bearer_auth(&self.api_token)
-            .json(&body)
-            .send()
-            .await?;
-        tracing::debug!(
-            status = resp.status().as_u16(),
-            elapsed = ?started.elapsed(),
-            "chat request completed"
-        );
-
-        let status = resp.status();
-        let bytes = resp.bytes().await?;
-
-        if !status.is_success() {
-            return Err(Error::Api {
-                status: status.as_u16(),
-                detail: Self::error_detail(&bytes).unwrap_or_default(),
-            });
-        }
-
-        Self::decode_chat(&bytes)
-    }
-
-    /// Decode a Workers AI text-generation response:
-    ///
-    /// ```json
-    /// {"result":{"response":"<text>","usage":{...}},"success":true,...}
-    /// ```
-    fn decode_chat(bytes: &[u8]) -> Result<ChatCompletion, Error> {
-        let v: Value = serde_json::from_slice(bytes)?;
-
-        if !v.get("success").and_then(Value::as_bool).unwrap_or(false) {
-            return Err(Error::NotSuccess {
-                detail: Self::error_detail(bytes).unwrap_or_default(),
-            });
-        }
-
-        let text = v
-            .get("result")
-            .and_then(|r| r.get("response"))
-            .and_then(Value::as_str)
-            .ok_or(Error::MissingResponse)?;
-
-        let usage = v
-            .get("result")
-            .and_then(|r| r.get("usage"))
-            .map(Self::parse_usage);
-
-        Ok(ChatCompletion {
-            text: text.to_string(),
-            usage,
-        })
-    }
-
-    /// Parse the optional `result.usage` object; absent fields default to
-    /// zero and a missing `total_tokens` is derived from the parts.
-    fn parse_usage(u: &Value) -> Usage {
-        let prompt = u.get("prompt_tokens").and_then(Value::as_u64).unwrap_or(0);
-        let completion = u
-            .get("completion_tokens")
-            .and_then(Value::as_u64)
-            .unwrap_or(0);
-        let total = u.get("total_tokens").and_then(Value::as_u64).unwrap_or(0);
-        Usage {
-            prompt_tokens: prompt,
-            completion_tokens: completion,
-            total_tokens: if total > 0 {
-                total
-            } else {
-                prompt + completion
-            },
-        }
-    }
-
     /// Pull the `errors[0].message` from a Cloudflare JSON error envelope.
-    fn error_detail(bytes: &[u8]) -> Option<String> {
+    pub(crate) fn error_detail(bytes: &[u8]) -> Option<String> {
         let v: Value = serde_json::from_slice(bytes).ok()?;
         let msg = v
             .get("errors")
@@ -255,68 +50,6 @@ impl CloudflareAiClient {
 mod tests {
     use super::*;
 
-    // A 1x1 transparent PNG.
-    const PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-
-    fn decode(content_type: &str, body: &[u8]) -> Result<GeneratedImage, Error> {
-        CloudflareAiClient::decode_response(content_type, body)
-    }
-
-    #[test]
-    fn decodes_base64_from_json_envelope() -> Result<(), Error> {
-        let body =
-            format!(r#"{{"result":{{"image":"{PNG}"}},"success":true,"errors":[],"messages":[]}}"#);
-        let img = decode("application/json", body.as_bytes())?;
-        assert_eq!(img.mime, "image/png");
-        assert_eq!(img.bytes, STANDARD.decode(PNG)?);
-        Ok(())
-    }
-
-    #[test]
-    fn decodes_data_uri_envelope() -> Result<(), Error> {
-        let body = format!(
-            r#"{{"result":{{"image":"data:image/png;base64,{PNG}"}},"success":true,"errors":[],"messages":[]}}"#
-        );
-        let img = decode("application/json", body.as_bytes())?;
-        assert_eq!(img.mime, "image/png");
-        assert_eq!(img.bytes, STANDARD.decode(PNG)?);
-        Ok(())
-    }
-
-    #[test]
-    fn passes_through_raw_image_bytes() -> Result<(), Error> {
-        let png = STANDARD.decode(PNG)?;
-        let img = decode("image/png", &png)?;
-        assert_eq!(img.mime, "image/png");
-        assert_eq!(img.bytes, png);
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_envelope_with_success_false() {
-        let body = br#"{"result":{},"success":false,"errors":[{"code":10000,"message":"model not found"}],"messages":[]}"#;
-        let err = decode("application/json", body).unwrap_err();
-        assert!(err.to_string().contains("model not found"));
-    }
-
-    #[test]
-    fn rejects_missing_result_image() {
-        let body = br#"{"result":{},"success":true,"errors":[],"messages":[]}"#;
-        assert!(decode("application/json", body).is_err());
-    }
-
-    #[test]
-    fn rejects_invalid_base64() {
-        let body =
-            br#"{"result":{"image":"not base64!!"},"success":true,"errors":[],"messages":[]}"#;
-        assert!(decode("application/json", body).is_err());
-    }
-
-    #[test]
-    fn rejects_neither_image_nor_json() {
-        assert!(decode("text/plain", b"not json").is_err());
-    }
-
     #[test]
     fn extracts_message_from_error_envelope() {
         let body = br#"{"errors":[{"code":10000,"message":"model not found"}],"success":false}"#;
@@ -329,47 +62,5 @@ mod tests {
     #[test]
     fn no_message_when_envelope_is_irregular() {
         assert_eq!(CloudflareAiClient::error_detail(b"not json"), None);
-    }
-
-    #[test]
-    fn decodes_chat_response() -> Result<(), Error> {
-        let body =
-            br#"{"result":{"response":"Hello, World!"},"success":true,"errors":[],"messages":[]}"#;
-        let chat = CloudflareAiClient::decode_chat(body)?;
-        assert_eq!(chat.text, "Hello, World!");
-        assert_eq!(chat.usage, None);
-        Ok(())
-    }
-
-    #[test]
-    fn decodes_chat_usage() -> Result<(), Error> {
-        let body = br#"{"result":{"response":"hi","usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}},"success":true,"errors":[],"messages":[]}"#;
-        let chat = CloudflareAiClient::decode_chat(body)?;
-        let usage = chat.usage.expect("usage present");
-        assert_eq!(usage.prompt_tokens, 10);
-        assert_eq!(usage.completion_tokens, 20);
-        assert_eq!(usage.total_tokens, 30);
-        Ok(())
-    }
-
-    #[test]
-    fn derives_total_tokens_when_missing() -> Result<(), Error> {
-        let body = br#"{"result":{"response":"hi","usage":{"prompt_tokens":10,"completion_tokens":20}},"success":true,"errors":[],"messages":[]}"#;
-        let chat = CloudflareAiClient::decode_chat(body)?;
-        assert_eq!(chat.usage.expect("usage present").total_tokens, 30);
-        Ok(())
-    }
-
-    #[test]
-    fn rejects_chat_with_success_false() {
-        let body = br#"{"result":{},"success":false,"errors":[{"code":10000,"message":"model not found"}],"messages":[]}"#;
-        let err = CloudflareAiClient::decode_chat(body).unwrap_err();
-        assert!(err.to_string().contains("model not found"));
-    }
-
-    #[test]
-    fn rejects_chat_missing_response() {
-        let body = br#"{"result":{},"success":true,"errors":[],"messages":[]}"#;
-        assert!(CloudflareAiClient::decode_chat(body).is_err());
     }
 }

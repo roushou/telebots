@@ -15,7 +15,7 @@ pub struct GeneratedImage {
 /// How a model's prompt must be encoded on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum Input {
+pub enum ImageInput {
     /// `application/json` body — `{"prompt": "..."}`.
     Json,
     /// `multipart/form-data` body with a `prompt` field.
@@ -78,15 +78,15 @@ impl ImageModel {
     }
 
     /// How the prompt must be encoded for this model.
-    pub fn input(self) -> Input {
+    pub fn input(self) -> ImageInput {
         match self {
             ImageModel::Flux2Dev | ImageModel::Flux2Klein4b | ImageModel::Flux2Klein9b => {
-                Input::Multipart
+                ImageInput::Multipart
             }
             ImageModel::Flux1Schnell
             | ImageModel::SdXlLightning
             | ImageModel::Dreamshaper8Lcm
-            | ImageModel::SdXlBase1 => Input::Json,
+            | ImageModel::SdXlBase1 => ImageInput::Json,
         }
     }
 
@@ -352,13 +352,13 @@ mod tests {
 
     #[test]
     fn input_encoding_by_model() {
-        assert_eq!(ImageModel::Flux2Dev.input(), Input::Multipart);
-        assert_eq!(ImageModel::Flux2Klein4b.input(), Input::Multipart);
-        assert_eq!(ImageModel::Flux2Klein9b.input(), Input::Multipart);
-        assert_eq!(ImageModel::Flux1Schnell.input(), Input::Json);
-        assert_eq!(ImageModel::SdXlLightning.input(), Input::Json);
-        assert_eq!(ImageModel::Dreamshaper8Lcm.input(), Input::Json);
-        assert_eq!(ImageModel::SdXlBase1.input(), Input::Json);
+        assert_eq!(ImageModel::Flux2Dev.input(), ImageInput::Multipart);
+        assert_eq!(ImageModel::Flux2Klein4b.input(), ImageInput::Multipart);
+        assert_eq!(ImageModel::Flux2Klein9b.input(), ImageInput::Multipart);
+        assert_eq!(ImageModel::Flux1Schnell.input(), ImageInput::Json);
+        assert_eq!(ImageModel::SdXlLightning.input(), ImageInput::Json);
+        assert_eq!(ImageModel::Dreamshaper8Lcm.input(), ImageInput::Json);
+        assert_eq!(ImageModel::SdXlBase1.input(), ImageInput::Json);
     }
 }
 
