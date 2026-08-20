@@ -1,35 +1,42 @@
 # Telebots — toolchain + developer tasks (mise)
 #
-#   mise install          install the pinned tools (bun)
+#   mise install          install the pinned tools (bun, dprint, cargo-shear)
 #   mise tasks            list all tasks
 #   mise run <task>       run a task (bare `mise run` runs the `default` task)
 #   mise run check        everything CI runs — run before pushing
 
 [tools]
-# Rust is intentionally not listed here: `rust-toolchain.toml` (channel =
-# "nightly") is the single source of truth for the Rust toolchain and is
-# managed by rustup (CI's dtolnay/rust-toolchain action reads the same
-# file). mise only manages the dashboard's JS runtime, matching
-# `oven/bun:1` in monitor/Dockerfile.
+# rustup (via `rust-toolchain.toml`, which CI's dtolnay/rust-toolchain
+# action also reads) owns the Rust compiler/toolchain and is intentionally
+# not listed here. mise manages the dashboard's JS runtime (matching
+# `oven/bun:1` in monitor/Dockerfile) plus the Rust auxiliary dev tools
+# that `mise run check` invokes (dprint, cargo-shear) — all prebuilt, no
+# compile-from-source.
 bun = "1"
+dprint = "0.56"
+"ubi:Boshen/cargo-shear" = "1.13"
 
 [env]
 MONITOR_BOTS = "degen=http://localhost:9101/metrics,imagine=http://localhost:9102/metrics,bud=http://localhost:9103/metrics,remind=http://localhost:9104/metrics"
 
 [tasks.rust-fmt]
 description = "Check Rust formatting"
+hide = true
 run = "cargo fmt --all --check"
 
 [tasks.dprint]
 description = "Check formatting of TOML/Markdown/JSON/YAML/Dockerfile"
+hide = true
 run = "dprint check"
 
 [tasks.rust-lint]
 description = "Clippy with warnings denied"
+hide = true
 run = "cargo clippy --workspace --all-targets -- -D warnings"
 
 [tasks.rust-shear]
 description = "Detect unused/misplaced dependencies (cargo shear)"
+hide = true
 run = "cargo shear"
 
 [tasks.fmt]
@@ -48,13 +55,16 @@ run = "cargo test --workspace"
 description = "Build the whole workspace"
 run = "cargo build --workspace"
 
-# fmt + lint run first (in parallel across both languages); the cargo steps
-# then run sequentially because they share the target dir, so parallel
-# execution would just thrash on the build lock.
+# fmt + lint run first (in parallel across both languages); test and build
+# then run sequentially because they share the target dir (parallel would
+# just thrash on the build lock).
 [tasks.check]
 description = "fmt + lint + test + build — what CI runs"
-depends = ["fmt", "lint"]
-run = ["cargo test --workspace", "cargo build --workspace"]
+run = [
+  { tasks = ["fmt", "lint"] },
+  { task = "test" },
+  { task = "build" },
+]
 
 [tasks.bot]
 description = "Run a workspace binary locally with its dev token from .env (degen, imagine, bud, remind, monitor)"
@@ -75,11 +85,13 @@ MONITOR_API_URL = "http://127.0.0.1:9110"
 
 [tasks.web-lint]
 description = "Lint the dashboard"
+hide = true
 dir = "monitor/web"
 run = "bun run lint"
 
 [tasks.web-fmt]
 description = "Check dashboard formatting (oxfmt --check)"
+hide = true
 dir = "monitor/web"
 run = "bun run fmt:check"
 
