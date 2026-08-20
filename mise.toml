@@ -24,13 +24,17 @@ run = "cargo fmt --all --check"
 description = "Clippy with warnings denied"
 run = "cargo clippy --workspace --all-targets -- -D warnings"
 
+[tasks.rust-shear]
+description = "Detect unused/misplaced dependencies (cargo shear)"
+run = "cargo shear"
+
 [tasks.fmt]
 description = "Check formatting (Rust + dashboard)"
 depends = ["rust-fmt", "web-fmt"]
 
 [tasks.lint]
 description = "Lint (Rust + dashboard)"
-depends = ["rust-lint", "web-lint"]
+depends = ["rust-lint", "rust-shear", "web-lint"]
 
 [tasks.test]
 description = "Run the test suite"
