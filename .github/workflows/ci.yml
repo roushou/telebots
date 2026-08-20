@@ -22,16 +22,19 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Format check
+      - name: Install cargo-shear and dprint
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-shear@1.13,dprint@0.56
+
+      - name: Format check (Rust)
         run: cargo fmt --all --check
+
+      - name: Format check (dprint)
+        run: dprint check
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Install cargo-shear
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-shear@1.13
 
       - name: Check unused dependencies
         run: cargo shear

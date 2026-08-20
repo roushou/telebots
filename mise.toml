@@ -20,6 +20,10 @@ MONITOR_BOTS = "degen=http://localhost:9101/metrics,imagine=http://localhost:910
 description = "Check Rust formatting"
 run = "cargo fmt --all --check"
 
+[tasks.dprint]
+description = "Check formatting of TOML/Markdown/JSON/YAML/Dockerfile"
+run = "dprint check"
+
 [tasks.rust-lint]
 description = "Clippy with warnings denied"
 run = "cargo clippy --workspace --all-targets -- -D warnings"
@@ -29,8 +33,8 @@ description = "Detect unused/misplaced dependencies (cargo shear)"
 run = "cargo shear"
 
 [tasks.fmt]
-description = "Check formatting (Rust + dashboard)"
-depends = ["rust-fmt", "web-fmt"]
+description = "Check formatting (Rust + dprint + dashboard)"
+depends = ["rust-fmt", "dprint", "web-fmt"]
 
 [tasks.lint]
 description = "Lint (Rust + dashboard)"
