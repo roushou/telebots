@@ -14,40 +14,40 @@ mise run bot remind                            # cargo run -p remind
 
 Use a separate test bot token from @BotFather for local dev.
 
-| Variable                    | Where to get it                                             |
-| --------------------------- | ----------------------------------------------------------- |
-| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]                        |
+| Variable                    | Where to get it                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]                                                                     |
 | `REMIND_DB_PATH`            | SQLite path (default `remind.db` locally; `/data/remind.db` in the container, set in docker-compose.yml) |
-| `TELEBOTS_METRICS_PORT`     | Optional: metrics port (default `9104`)                     |
+| `TELEBOTS_METRICS_PORT`     | Optional: metrics port (default `9104`)                                                                  |
 
 [@BotFather]: https://t.me/BotFather
 
 ## Commands
 
-| Command                     | Description                          |
-| --------------------------- | ------------------------------------ |
-| `/remind <when> <message>`  | Set a reminder                       |
-| `/reminders`                | List upcoming reminders              |
-| `/cancel <number>`          | Remove a reminder by its list number |
-| `/timezone <offset>`        | Set your UTC offset (e.g. `+2`, `-5`, `+5:30`, `utc`) |
-| `/stats`                    | Bot uptime, commands, jobs, panics   |
-| `/help`                     | Show this help                       |
+| Command                    | Description                                           |
+| -------------------------- | ----------------------------------------------------- |
+| `/remind <when> <message>` | Set a reminder                                        |
+| `/reminders`               | List upcoming reminders                               |
+| `/cancel <number>`         | Remove a reminder by its list number                  |
+| `/timezone <offset>`       | Set your UTC offset (e.g. `+2`, `-5`, `+5:30`, `utc`) |
+| `/stats`                   | Bot uptime, commands, jobs, panics                    |
+| `/help`                    | Show this help                                        |
 
 ## When to remind
 
 `<when>` is one of:
 
-| Form               | Meaning                                   |
-| ------------------ | ----------------------------------------- |
-| `15m`, `2h30m`     | relative duration (`in`/`after` optional) |
-| `5 minutes`, `1d`  | word units (`s`, `m`, `h`, `d`, `w`)      |
-| `next week`, `in an hour` | a week from now / one hour           |
+| Form                               | Meaning                                          |
+| ---------------------------------- | ------------------------------------------------ |
+| `15m`, `2h30m`                     | relative duration (`in`/`after` optional)        |
+| `5 minutes`, `1d`                  | word units (`s`, `m`, `h`, `d`, `w`)             |
+| `next week`, `in an hour`          | a week from now / one hour                       |
 | `9am`, `14:30`, `noon`, `midnight` | a clock time today (or tomorrow if already past) |
-| `monday`, `mon`    | next occurrence of a weekday              |
-| `next monday`, `this monday` | next week's / this week's Monday  |
-| `june 5`, `5 june` | next occurrence of a month/day            |
-| `tomorrow 9am`, `9am tomorrow` | a date and time in either order |
-| `2025-06-01 09:00` | an exact date (and optional time)         |
+| `monday`, `mon`                    | next occurrence of a weekday                     |
+| `next monday`, `this monday`       | next week's / this week's Monday                 |
+| `june 5`, `5 june`                 | next occurrence of a month/day                   |
+| `tomorrow 9am`, `9am tomorrow`     | a date and time in either order                  |
+| `2025-06-01 09:00`                 | an exact date (and optional time)                |
 
 A time can be joined to a date with `at`: `tomorrow at 9am`, `monday at 9am`,
 `at 9am`.

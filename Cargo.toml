@@ -1,6 +1,19 @@
 [workspace]
 resolver = "3"
-members = ["bots/degen", "bots/imagine", "bots/bud", "bots/remind", "crates/botkit", "crates/botkit-derive", "crates/cloudflare-ai", "crates/coinmarketcap", "crates/coingecko", "crates/core", "crates/storage", "monitor"]
+members = [
+  "bots/bud",
+  "bots/degen",
+  "bots/imagine",
+  "bots/remind",
+  "crates/botkit",
+  "crates/botkit-derive",
+  "crates/cloudflare-ai",
+  "crates/coingecko",
+  "crates/coinmarketcap",
+  "crates/core",
+  "crates/storage",
+  "monitor",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,8 +28,8 @@ base64 = "0.22"
 botkit = { path = "crates/botkit" }
 botkit-derive = { path = "crates/botkit-derive" }
 cloudflare-ai = { path = "crates/cloudflare-ai" }
-coinmarketcap = { path = "crates/coinmarketcap" }
 coingecko = { path = "crates/coingecko" }
+coinmarketcap = { path = "crates/coinmarketcap" }
 config = { version = "0.15", default-features = false }
 dotenvy = "0.15"
 futures = "0.3"

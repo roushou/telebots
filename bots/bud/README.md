@@ -17,41 +17,41 @@ mise run bot bud                         # cargo run -p bud
 
 Use a separate test bot token from @BotFather for local dev.
 
-| Variable                    | Where to get it                                             |
-| --------------------------- | ----------------------------------------------------------- |
-| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]                        |
-| `CLOUDFLARE_API_TOKEN`      | API token with Workers AI access, dash.cloudflare.com       |
-| `CLOUDFLARE_ACCOUNT_ID`     | Account id from the Workers AI dashboard URL                |
+| Variable                    | Where to get it                                                         |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]                                    |
+| `CLOUDFLARE_API_TOKEN`      | API token with Workers AI access, dash.cloudflare.com                   |
+| `CLOUDFLARE_ACCOUNT_ID`     | Account id from the Workers AI dashboard URL                            |
 | `BUD_DB_PATH`               | SQLite path (default `bud.db` locally; `/data/bud.db` in the container) |
-| `BUD_SYSTEM_PROMPT`         | Optional: default personality (per-chat override with `/system`) |
-| `BUD_MAX_HISTORY`           | Optional: prior messages kept in context (default 20)       |
-| `TELEBOTS_METRICS_PORT`     | Optional: metrics port (default `9103`)                     |
+| `BUD_SYSTEM_PROMPT`         | Optional: default personality (per-chat override with `/system`)        |
+| `BUD_MAX_HISTORY`           | Optional: prior messages kept in context (default 20)                   |
+| `TELEBOTS_METRICS_PORT`     | Optional: metrics port (default `9103`)                                 |
 
 [@BotFather]: https://t.me/BotFather
 
 ## Commands
 
-| Command            | Description                          |
-| ------------------ | ------------------------------------ |
-| *(free text)*      | Talk to bud                          |
-| `/reset`           | Clear the conversation               |
-| `/history`         | Show your recent conversation        |
-| `/model <name>`    | Pick the AI model                    |
+| Command            | Description                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| _(free text)_      | Talk to bud                                                  |
+| `/reset`           | Clear the conversation                                       |
+| `/history`         | Show your recent conversation                                |
+| `/model <name>`    | Pick the AI model                                            |
 | `/system <prompt>` | Set bud's personality (`/system reset` restores the default) |
-| `/stats`           | Bot uptime, commands, jobs, panics   |
-| `/help`            | Show this help                       |
+| `/stats`           | Bot uptime, commands, jobs, panics                           |
+| `/help`            | Show this help                                               |
 
 ## Models
 
 Pass one of these tokens to `/model`, e.g. `/model deepseek-r1`. Without a
 choice, `llama-3.1-8b` is used.
 
-| Token(s)            | Model                       |
-| ------------------- | --------------------------- |
-| `llama-3.1-8b`, `8b` | Llama 3.1 8B (default)     |
-| `llama-3.2-3b`, `3b` | Llama 3.2 3B — fastest      |
+| Token(s)               | Model                        |
+| ---------------------- | ---------------------------- |
+| `llama-3.1-8b`, `8b`   | Llama 3.1 8B (default)       |
+| `llama-3.2-3b`, `3b`   | Llama 3.2 3B — fastest       |
 | `llama-3.3-70b`, `70b` | Llama 3.3 70B — best quality |
-| `deepseek-r1`, `r1` | DeepSeek R1 32B — reasoning |
+| `deepseek-r1`, `r1`    | DeepSeek R1 32B — reasoning  |
 
 ## Notes
 

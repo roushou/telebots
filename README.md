@@ -2,23 +2,23 @@
 
 A bunch of Telegram bots to make Telegram better.
 
-| Crate                | Description                                   |
-| -------------------- | --------------------------------------------- |
-| [`degen`](bots/degen)   | cryptocurrency bot                           |
-| [`imagine`](bots/imagine) | AI image generation from prompts           |
-| [`bud`](bots/bud)     | AI chat bot (talk to it like ChatGPT)         |
-| [`remind`](bots/remind) | reminders & scheduled messages (set a time, get pinged) |
-| [`monitor`](monitor) | admin dashboard: per-bot status + history     |
+| Crate                     | Description                                             |
+| ------------------------- | ------------------------------------------------------- |
+| [`degen`](bots/degen)     | cryptocurrency bot                                      |
+| [`imagine`](bots/imagine) | AI image generation from prompts                        |
+| [`bud`](bots/bud)         | AI chat bot (talk to it like ChatGPT)                   |
+| [`remind`](bots/remind)   | reminders & scheduled messages (set a time, get pinged) |
+| [`monitor`](monitor)      | admin dashboard: per-bot status + history               |
 
 Library crates shared by the bots:
 
-| Crate | Description |
-| --- | --- |
-| [`botkit`](crates/botkit) | the framework: commands, replies, metrics, health |
-| [`botkit-derive`](crates/botkit-derive) | the `#[derive(CommandSpec)]` macro |
-| [`telebots-core`](crates/core) | the document model (`Block`, `Cell`, `Money`) |
-| [`storage`](crates/storage) | reusable SQLite storage |
-| [`coinmarketcap`](crates/coinmarketcap) · [`coingecko`](crates/coingecko) · [`cloudflare-ai`](crates/cloudflare-ai) | standalone data-source clients |
+| Crate                                                                                                               | Description                                       |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| [`botkit`](crates/botkit)                                                                                           | the framework: commands, replies, metrics, health |
+| [`botkit-derive`](crates/botkit-derive)                                                                             | the `#[derive(CommandSpec)]` macro                |
+| [`telebots-core`](crates/core)                                                                                      | the document model (`Block`, `Cell`, `Money`)     |
+| [`storage`](crates/storage)                                                                                         | reusable SQLite storage                           |
+| [`coinmarketcap`](crates/coinmarketcap) · [`coingecko`](crates/coingecko) · [`cloudflare-ai`](crates/cloudflare-ai) | standalone data-source clients                    |
 
 ## Getting started
 

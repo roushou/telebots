@@ -11,11 +11,11 @@ mise run bot degen                           # cargo run -p degen; loads its .en
 
 Use a separate test bot token from @BotFather for local dev.
 
-| Variable                | Where to get it                                    |
-| ----------------------- | -------------------------------------------------- |
-| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]           |
-| `COINMARKETCAP_API_KEY` | Free-tier key from [pro.coinmarketcap.com]         |
-| `TELEBOTS_METRICS_PORT` | Optional: metrics port (default `9101`)           |
+| Variable                    | Where to get it                            |
+| --------------------------- | ------------------------------------------ |
+| `TELEBOTS_TELEGRAM_API_KEY` | Telegram bot token from [@BotFather]       |
+| `COINMARKETCAP_API_KEY`     | Free-tier key from [pro.coinmarketcap.com] |
+| `TELEBOTS_METRICS_PORT`     | Optional: metrics port (default `9101`)    |
 
 [@BotFather]: https://t.me/BotFather
 [pro.coinmarketcap.com]: https://pro.coinmarketcap.com
@@ -25,20 +25,20 @@ Add the bot to your group chat and it responds to commands (with or without
 
 ## Inline queries
 
-Type `@<your-bot> btc eth` in *any* chat (you don't have to add the bot) to
+Type `@<your-bot> btc eth` in _any_ chat (you don't have to add the bot) to
 get a tappable price card for each symbol. Tapping a card sends the full
 quote into the chat.
 
 ## Commands
 
-| Command                  | Description                            |
-| ------------------------ | -------------------------------------- |
-| `/price btc eth`         | Prices, 24h change, market cap, volume |
-| `/convert 100 btc usd`   | Convert an amount between assets       |
-| `/market`                | Total cap, BTC/ETH dominance           |
-| `/compare btc eth`       | Side-by-side comparison table          |
-| `/fear_greed`            | Fear & Greed index                     |
-| `/trending`              | Top trending coins                     |
-| `/info btc`              | Category, website, description         |
-| `/stats`                 | Bot uptime, commands, jobs, panics     |
-| `/help`                  | Show this help                         |
+| Command                | Description                            |
+| ---------------------- | -------------------------------------- |
+| `/price btc eth`       | Prices, 24h change, market cap, volume |
+| `/convert 100 btc usd` | Convert an amount between assets       |
+| `/market`              | Total cap, BTC/ETH dominance           |
+| `/compare btc eth`     | Side-by-side comparison table          |
+| `/fear_greed`          | Fear & Greed index                     |
+| `/trending`            | Top trending coins                     |
+| `/info btc`            | Category, website, description         |
+| `/stats`               | Bot uptime, commands, jobs, panics     |
+| `/help`                | Show this help                         |

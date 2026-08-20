@@ -6,9 +6,9 @@ stores status snapshots in SQLite, and serves a TanStack Start dashboard
 
 Two processes run in the monitor container:
 
-| Process | Port | Reachable from |
-| ------- | ---- | -------------- |
-| Rust JSON API | `9110` | container only |
+| Process                               | Port   | Reachable from          |
+| ------------------------------------- | ------ | ----------------------- |
+| Rust JSON API                         | `9110` | container only          |
 | TanStack Start dashboard (Nitro/Node) | `3000` | host (`127.0.0.1:3000`) |
 
 The dashboard's server functions call the JSON API over the container's
@@ -25,15 +25,15 @@ mise run web                                   # dashboard dev server on :3000
 The dev server fetches bot data from `http://127.0.0.1:9110` (the local
 monitor). Override with `MONITOR_API_URL` if the API lives elsewhere.
 
-| Variable          | Where it's set                                              |
-| ----------------- | ----------------------------------------------------------- |
-| `MONITOR_BOTS`    | Bot `/metrics` endpoints. Local dev: `mise.toml` (`http://localhost:9101/metrics`); container: `docker-compose.yml` (compose network URLs) |
-| `MONITOR_DB_PATH` | SQLite path (default `monitor.db` locally; `/data/monitor.db` in the container via `docker-compose.yml`) |
-| `MONITOR_PORT`    | JSON API port (default `9110`; set in `docker-compose.yml`) |
-| `MONITOR_RETENTION_DAYS` | Snapshot retention in days (default `30`; older snapshots are pruned daily) |
-| `MONITOR_ALERT_TELEGRAM_TOKEN` | Optional: bot token used to send alerts; alerts are off when unset |
-| `MONITOR_ALERT_CHAT_ID` | Optional: chat to send alerts to (`@channel` or numeric id) |
-| `MONITOR_API_URL` | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`; set in `mise.toml` for the `web` task) |
+| Variable                       | Where it's set                                                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MONITOR_BOTS`                 | Bot `/metrics` endpoints. Local dev: `mise.toml` (`http://localhost:9101/metrics`); container: `docker-compose.yml` (compose network URLs) |
+| `MONITOR_DB_PATH`              | SQLite path (default `monitor.db` locally; `/data/monitor.db` in the container via `docker-compose.yml`)                                   |
+| `MONITOR_PORT`                 | JSON API port (default `9110`; set in `docker-compose.yml`)                                                                                |
+| `MONITOR_RETENTION_DAYS`       | Snapshot retention in days (default `30`; older snapshots are pruned daily)                                                                |
+| `MONITOR_ALERT_TELEGRAM_TOKEN` | Optional: bot token used to send alerts; alerts are off when unset                                                                         |
+| `MONITOR_ALERT_CHAT_ID`        | Optional: chat to send alerts to (`@channel` or numeric id)                                                                                |
+| `MONITOR_API_URL`              | Optional: base URL the dashboard uses to reach the JSON API (default `http://127.0.0.1:9110`; set in `mise.toml` for the `web` task)       |
 
 The alert vars are secrets: in the container they come from `monitor/.env`
 (copied from `.env.example` by `scripts/up.sh` on first run), not from
@@ -42,12 +42,12 @@ The alert vars are secrets: in the container they come from `monitor/.env`
 
 ## API
 
-| Endpoint                          | Description                        |
-| --------------------------------- | ---------------------------------- |
-| `GET /healthz`                    | Monitor liveness (503 when the poller is stale) |
-| `GET /metrics`                    | The monitor's own runtime status |
-| `GET /api/bots`                   | Newest status snapshot per bot     |
-| `GET /api/bots/<name>/history?limit=100` | Recent snapshots, newest first |
+| Endpoint                                 | Description                                     |
+| ---------------------------------------- | ----------------------------------------------- |
+| `GET /healthz`                           | Monitor liveness (503 when the poller is stale) |
+| `GET /metrics`                           | The monitor's own runtime status                |
+| `GET /api/bots`                          | Newest status snapshot per bot                  |
+| `GET /api/bots/<name>/history?limit=100` | Recent snapshots, newest first                  |
 
 The dashboard is a TanStack Start app under `web/`. `bun run build`
 produces a Nitro server build in `web/.output`; the Docker image runs
